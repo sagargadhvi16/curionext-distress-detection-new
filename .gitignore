@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Models - NEVER commit
+*.pth
+*.pt
+*.h5
+*.onnx
+models/checkpoints/*
+models/pretrained/*
+!models/checkpoints/.gitkeep
+!models/pretrained/.gitkeep
+
+# Data - NEVER commit
+*.wav
+*.mp3
+*.flac
+data/raw/*
+data/processed/*
+data/synthetic/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/synthetic/.gitkeep
+
+# Secrets
+.env
+*.key
+credentials.json
+
+# Logs
+*.log
+logs/
+wandb/
+tensorboard/

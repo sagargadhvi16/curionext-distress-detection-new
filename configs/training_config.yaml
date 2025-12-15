@@ -1,0 +1,47 @@
+# Training Configuration
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  optimizer: "adam"
+  weight_decay: 0.0001
+
+  # Learning rate schedule
+  scheduler:
+    type: "reduce_on_plateau"
+    factor: 0.5
+    patience: 5
+    min_lr: 0.00001
+
+loss:
+  type: "weighted_cross_entropy"
+  # Emphasize false negatives (missing distress)
+  class_weights: [1.0, 2.0]  # [no_distress, distress]
+
+data:
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  random_seed: 42
+
+  # Data augmentation
+  augmentation:
+    audio:
+      - time_stretch: [0.9, 1.1]
+      - pitch_shift: [-2, 2]
+      - add_noise: 0.005
+    biometric:
+      - gaussian_noise: 0.01
+
+checkpointing:
+  save_dir: "models/checkpoints"
+  save_every: 5  # epochs
+  keep_best: 3
+  metric: "val_f1"
+  mode: "max"
+
+logging:
+  wandb: false
+  tensorboard: true
+  log_every: 10  # batches

@@ -1,0 +1,24 @@
+# Model Architecture Configuration
+
+audio_encoder:
+  type: "yamnet"  # Options: yamnet, custom_cnn
+  pretrained: true
+  embedding_dim: 1024
+  freeze_layers: 5
+
+biometric_encoder:
+  input_features: 20  # HRV + accelerometer features
+  hidden_dims: [128, 64]
+  dropout: 0.3
+  embedding_dim: 64
+
+fusion:
+  type: "late_fusion"  # Options: late_fusion, early_fusion, attention_fusion
+  concat_dim: 1088  # 1024 (audio) + 64 (biometric)
+  fusion_hidden_dims: [512, 256]
+  dropout: 0.4
+
+classifier:
+  num_classes: 2  # distress / no_distress
+  hidden_dim: 128
+  dropout: 0.3
