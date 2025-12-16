@@ -19,8 +19,8 @@ def load_audio(file_path: str, sr: int = 16000) -> Tuple[np.ndarray, int]:
 
     TODO: Implement audio loading with error handling
     """
-    path = Path(file_path)
-
+    path = Path(file_path) #convert string path to path object
+    
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {file_path}")
 
@@ -30,7 +30,7 @@ def load_audio(file_path: str, sr: int = 16000) -> Tuple[np.ndarray, int]:
 
         audio, sample_rate = librosa.load(
             str(path),
-            sr=sr,
+            sr=sr, #resampling happens here,resamples internally to sr=16000
             mono=True
         )
 
@@ -45,6 +45,42 @@ def load_audio(file_path: str, sr: int = 16000) -> Tuple[np.ndarray, int]:
     except Exception as e:
         raise ValueError(f"Failed to load audio file: {e}")
 
+def resample_audio(
+    audio: np.ndarray,
+    orig_sr: int,
+    target_sr: int = 16000
+) -> np.ndarray:
+    """
+    Resample audio to target sample rate using high-quality resampling.
+
+    Args:
+        audio: Audio waveform array
+        orig_sr: Original sampling rate
+        target_sr: Target sampling rate (default: 16000 Hz)
+
+    Returns:
+        Resampled audio array
+    """
+    if audio.size == 0:
+        raise ValueError("Cannot resample empty audio")
+
+    if orig_sr <= 0 or target_sr <= 0:
+        raise ValueError("Sample rates must be positive")
+
+    # No resampling needed
+    if orig_sr == target_sr:
+        return audio
+
+    try:
+        resampled_audio = librosa.resample(
+            audio,
+            orig_sr=orig_sr,
+            target_sr=target_sr
+        )
+        return resampled_audio
+
+    except Exception as e:
+        raise ValueError(f"Failed to resample audio: {e}")
 
 def normalize_audio(audio: np.ndarray, method: str = "peak") -> np.ndarray:
     """
@@ -76,6 +112,49 @@ def normalize_audio(audio: np.ndarray, method: str = "peak") -> np.ndarray:
 
     else:
         raise ValueError(f"Unsupported normalization method: {method}")
+
+def detect_silence(
+    audio: np.ndarray,
+    sr: int,
+    threshold_db: int = 20
+):
+    """
+    Detect silent regions in audio based on energy threshold.
+
+    Args:
+        audio: Audio waveform array
+        sr: Sample rate
+        threshold_db: Silence threshold in dB below peak
+
+    Returns:
+        List of (start_sample, end_sample) tuples representing silence regions
+    """
+    if audio.size == 0:
+        raise ValueError("Cannot detect silence in empty audio")
+
+    try:
+        # Non-silent regions
+        non_silent_intervals = librosa.effects.split(
+            audio,
+            top_db=threshold_db
+        )
+
+        silence_intervals = []
+        prev_end = 0
+
+        for start, end in non_silent_intervals:
+            if start > prev_end:
+                silence_intervals.append((prev_end, start))
+            prev_end = end
+
+        # Trailing silence
+        if prev_end < len(audio):
+            silence_intervals.append((prev_end, len(audio)))
+
+        return silence_intervals
+
+    except Exception as e:
+        raise ValueError(f"Failed to detect silence: {e}")
 
 
 def trim_silence(
