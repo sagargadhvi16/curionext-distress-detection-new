@@ -1,7 +1,5 @@
-
-
-
 """HRV feature extraction."""
+
 import numpy as np
 from typing import Dict
 from scipy import signal
@@ -55,7 +53,7 @@ def compute_time_domain_features(rr_intervals: np.ndarray) -> Dict[str, float]:
     pnn50 = (np.sum(diff_rr_ms > 50) / len(diff_rr)) * 100
 
     return {
-        "RMSSD": float(rmssd * 1000),  # back to ms
+        "RMSSD": float(rmssd * 1000),
         "SDNN": float(sdnn * 1000),
         "pNN50": float(pnn50),
     }
@@ -63,7 +61,7 @@ def compute_time_domain_features(rr_intervals: np.ndarray) -> Dict[str, float]:
 
 def compute_frequency_domain_features(rr_intervals: np.ndarray) -> Dict[str, float]:
     """
-    Compute frequency-domain HRV features.
+    Compute frequency-domain HRV features using Lomb–Scargle.
     """
     rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
 
@@ -98,3 +96,64 @@ def compute_frequency_domain_features(rr_intervals: np.ndarray) -> Dict[str, flo
     except Exception as e:
         warnings.warn(f"Frequency HRV failed: {e}")
         return {"LF": 0.0, "HF": 0.0, "LF_HF": 0.0}
+
+
+def compute_frequency_domain_features_fft(
+    rr_intervals: np.ndarray,
+    fs: float = 4.0
+) -> Dict[str, float]:
+    """
+    Compute HRV frequency-domain features using FFT.
+
+    Bands:
+    - VLF: 0.003–0.04 Hz
+    - LF:  0.04–0.15 Hz
+    - HF:  0.15–0.40 Hz
+    """
+
+    features = {
+        "VLF": 0.0,
+        "LF": 0.0,
+        "HF": 0.0,
+        "LF_HF": 0.0,
+    }
+
+    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
+
+    if len(rr_intervals) < 8:
+        return features
+
+    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
+
+    if np.any(rr_sec <= 0):
+        return features
+
+    time_axis = np.cumsum(rr_sec)
+    duration = time_axis[-1]
+
+    if duration < 10.0:
+        return features
+
+    # Interpolate to uniform sampling
+    t_uniform = np.arange(0, duration, 1 / fs)
+    rr_interp = np.interp(t_uniform, time_axis, rr_sec)
+
+    rr_interp -= np.mean(rr_interp)
+
+    freqs = np.fft.rfftfreq(len(rr_interp), d=1 / fs)
+    power = np.abs(np.fft.rfft(rr_interp)) ** 2
+
+    def band_power(low, high):
+        mask = (freqs >= low) & (freqs < high)
+        return np.trapz(power[mask], freqs[mask]) if np.any(mask) else 0.0
+
+    vlf = band_power(0.003, 0.04)
+    lf = band_power(0.04, 0.15)
+    hf = band_power(0.15, 0.40)
+
+    features["VLF"] = float(vlf)
+    features["LF"] = float(lf)
+    features["HF"] = float(hf)
+    features["LF_HF"] = float(lf / hf) if hf > 0 else 0.0
+
+    return features
