@@ -5,6 +5,11 @@ import numpy as np
 from pathlib import Path
 from typing import Tuple
 
+"""
+Audio preprocessing pipeline:
+load_audio → resample_audio → normalize_audio → detect_silence → trim_silence
+"""
+
 
 def load_audio(file_path: str, sr: int = 16000) -> Tuple[np.ndarray, int]:
     """
@@ -17,7 +22,10 @@ def load_audio(file_path: str, sr: int = 16000) -> Tuple[np.ndarray, int]:
     Returns:
         Tuple of (audio_data, sample_rate)
 
-    TODO: Implement audio loading with error handling
+    Notes:
+        - Supports WAV, MP3, and FLAC formats
+        - Converts audio to mono and resamples to target sample rate
+        - Includes validation and error handling for missing or corrupted files
     """
     path = Path(file_path) #convert string path to path object
     
@@ -60,6 +68,9 @@ def resample_audio(
 
     Returns:
         Resampled audio array
+    Notes:
+        - Intended for audio already loaded in memory (non-file inputs)
+        - Avoids unnecessary resampling when sample rates already match
     """
     if audio.size == 0:
         raise ValueError("Cannot resample empty audio")
@@ -93,7 +104,9 @@ def normalize_audio(audio: np.ndarray, method: str = "peak") -> np.ndarray:
     Returns:
         Normalized audio array
 
-    TODO: Implement normalization methods
+    Notes:
+        - Peak normalization scales audio to max absolute amplitude
+        - RMS normalization standardizes average signal energy
     """
     if audio.size == 0:
         raise ValueError("Cannot normalize empty audio")
@@ -108,6 +121,8 @@ def normalize_audio(audio: np.ndarray, method: str = "peak") -> np.ndarray:
         rms = np.sqrt(np.mean(audio ** 2))
         if rms == 0:
             return audio
+        # Note: RMS normalization may produce peaks > 1.0.
+        # This is acceptable for ML feature extraction pipelines.
         return audio / rms
 
     else:
@@ -115,7 +130,7 @@ def normalize_audio(audio: np.ndarray, method: str = "peak") -> np.ndarray:
 
 def detect_silence(
     audio: np.ndarray,
-    sr: int,
+    sr: int, # sr kept for future extensions (e.g., duration-based silence filtering)
     threshold_db: int = 20
 ):
     """
@@ -128,6 +143,9 @@ def detect_silence(
 
     Returns:
         List of (start_sample, end_sample) tuples representing silence regions
+    Notes:
+        - Uses energy-based thresholding to identify silence
+        - Does not modify the audio waveform
     """
     if audio.size == 0:
         raise ValueError("Cannot detect silence in empty audio")
@@ -173,7 +191,9 @@ def trim_silence(
     Returns:
         Trimmed audio array
 
-    TODO: Implement silence trimming
+    Notes:
+        - Removes only leading and trailing low-energy regions
+        - Preserves silence within the audio content
     """
     if audio.size == 0:
         raise ValueError("Cannot trim silence from empty audio")
@@ -187,3 +207,46 @@ def trim_silence(
 
     except Exception as e:
         raise ValueError(f"Failed to trim silence: {e}")
+
+class AudioPreprocessor:
+    """
+    End-to-end audio preprocessing pipeline.
+
+    Pipeline:
+        load_audio → normalize_audio → trim_silence
+
+    Notes:
+        - load_audio already performs resampling for file-based inputs
+        - resample_audio is intended for already-loaded audio
+    """
+    def __init__(
+            self,
+            target_sr: int = 16000,
+            normalization: str = "peak",
+            silence_db: int = 20
+        ):
+        #initialize audio preprocessor configuration
+        self.target_sr = target_sr
+        self.normalization = normalization
+        self.silence_db = silence_db
+
+    def process(self, file_path: str) -> np.ndarray:
+        """
+        Process an audio file through the full preprocessing pipeline.
+
+        Args:
+            file_path: Path to input audio file
+
+        Returns:
+            Preprocessed audio waveform
+        """
+        # Step 1: Load audio (includes mono conversion + resampling)
+        audio, sr = load_audio(file_path, sr=self.target_sr)
+
+        # Step 2: Normalize audio
+        audio = normalize_audio(audio, method=self.normalization)
+
+        # Step 3: Trim leading and trailing silence
+        audio = trim_silence(audio, sr=sr, top_db=self.silence_db)
+
+        return audio
