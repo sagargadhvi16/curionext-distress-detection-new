@@ -4,7 +4,8 @@ import soundfile as sf
 import numpy as np
 from pathlib import Path
 from typing import Tuple
-
+from multiprocessing import Pool
+from tqdm import tqdm
 """
 Audio preprocessing pipeline:
 load_audio → resample_audio → normalize_audio → detect_silence → trim_silence
@@ -208,6 +209,16 @@ def trim_silence(
     except Exception as e:
         raise ValueError(f"Failed to trim silence: {e}")
 
+def _process_single_file(file_path):
+    processor = AudioPreprocessor()
+    try:
+        return processor.process(file_path)
+    except Exception as e:
+        return {
+            "file": file_path,
+            "error": str(e)
+        }
+
 class AudioPreprocessor:
     """
     End-to-end audio preprocessing pipeline.
@@ -250,3 +261,29 @@ class AudioPreprocessor:
         audio = trim_silence(audio, sr=sr, top_db=self.silence_db)
 
         return audio
+
+    def process_batch(self, file_list, n_workers: int = 4):
+        """
+        Process multiple audio files in parallel.
+
+        Returns:
+            List of processed audio arrays or error dictionaries
+        """
+        if not file_list:
+            raise ValueError("file_list is empty")
+
+        with Pool(processes=n_workers) as pool:
+            results = list(
+                tqdm(
+                    pool.imap(_process_single_file, file_list),
+                    total=len(file_list),
+                    desc="Processing audio files"
+                )
+            )
+
+        return results
+
+
+    
+
+
