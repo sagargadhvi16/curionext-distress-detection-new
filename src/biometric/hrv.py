@@ -233,3 +233,57 @@ def compute_nonlinear_hrv_features(
     features["SD2"] = float(sd2 * 1000)
 
     return features
+
+
+def extract_all_hrv_features(rr_intervals: np.ndarray) -> Dict[str, float]:
+    """
+    Aggregate all HRV features into a single dictionary.
+
+    Includes:
+    - Time-domain HRV
+    - Frequency-domain HRV (Lomb–Scargle)
+    - Frequency-domain HRV (FFT)
+    - Nonlinear HRV features
+    """
+
+    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
+
+    features = {}
+
+    # -------- Time-domain --------
+    try:
+        features.update(compute_time_domain_features(rr_intervals))
+    except Exception:
+        features.update({"RMSSD": 0.0, "SDNN": 0.0, "pNN50": 0.0})
+
+    # -------- Frequency-domain (Lomb–Scargle) --------
+    try:
+        features.update(compute_frequency_domain_features(rr_intervals))
+    except Exception:
+        features.update({"LF": 0.0, "HF": 0.0, "LF_HF": 0.0})
+
+    # -------- Frequency-domain (FFT) --------
+    try:
+        fft_features = compute_frequency_domain_features_fft(rr_intervals)
+
+        # Avoid overwriting LF/HF from Lomb–Scargle
+        fft_features = {
+            "FFT_" + k: v for k, v in fft_features.items()
+        }
+
+        features.update(fft_features)
+    except Exception:
+        features.update({
+            "FFT_VLF": 0.0,
+            "FFT_LF": 0.0,
+            "FFT_HF": 0.0,
+            "FFT_LF_HF": 0.0,
+        })
+
+    # -------- Nonlinear HRV --------
+    try:
+        features.update(compute_nonlinear_hrv_features(rr_intervals))
+    except Exception:
+        features.update({"SAMPEN": 0.0, "SD1": 0.0, "SD2": 0.0})
+
+    return features
