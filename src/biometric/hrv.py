@@ -157,3 +157,79 @@ def compute_frequency_domain_features_fft(
     features["LF_HF"] = float(lf / hf) if hf > 0 else 0.0
 
     return features
+
+
+def compute_nonlinear_hrv_features(
+    rr_intervals: np.ndarray,
+    m: int = 2,
+    r_ratio: float = 0.2
+) -> Dict[str, float]:
+    """
+    Compute nonlinear HRV features:
+    - Sample Entropy (SampEn)
+    - Poincaré plot features (SD1, SD2)
+
+    Args:
+        rr_intervals: RR intervals (ms or sec)
+        m: embedding dimension for SampEn
+        r_ratio: tolerance as fraction of std
+
+    Returns:
+        Dictionary with SAMPEN, SD1, SD2
+    """
+
+    features = {
+        "SAMPEN": 0.0,
+        "SD1": 0.0,
+        "SD2": 0.0
+    }
+
+    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
+
+    if len(rr_intervals) < 10:
+        return features
+
+    # ms → sec if needed
+    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
+
+    if np.std(rr_sec) == 0:
+        return features
+
+    # ---------- Sample Entropy ----------
+    def sample_entropy(signal, m, r):
+        n = len(signal)
+
+        def _count_similar(template_len):
+            count = 0
+            for i in range(n - template_len):
+                template = signal[i:i + template_len]
+                for j in range(i + 1, n - template_len):
+                    if np.all(np.abs(template - signal[j:j + template_len]) <= r):
+                        count += 1
+            return count
+
+        r = r_ratio * np.std(signal)
+        count_m = _count_similar(m)
+        count_m1 = _count_similar(m + 1)
+
+        if count_m == 0 or count_m1 == 0:
+            return 0.0
+
+        return -np.log(count_m1 / count_m)
+
+    try:
+        sampen = sample_entropy(rr_sec, m, r_ratio)
+    except Exception:
+        sampen = 0.0
+
+    # ---------- Poincaré Plot Features ----------
+    diff_rr = np.diff(rr_sec)
+
+    sd1 = np.sqrt(np.var(diff_rr) / 2.0)
+    sd2 = np.sqrt(2 * np.var(rr_sec) - (np.var(diff_rr) / 2.0))
+
+    features["SAMPEN"] = float(sampen)
+    features["SD1"] = float(sd1 * 1000)  # back to ms
+    features["SD2"] = float(sd2 * 1000)
+
+    return features
