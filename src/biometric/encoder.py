@@ -1,48 +1,63 @@
-"""Biometric signal encoder."""
+"""
+Biometric signal encoder using BiLSTM.
+
+Encodes temporal biometric feature sequences (HRV + accelerometer)
+into a fixed-size embedding.
+"""
+
 import torch
 import torch.nn as nn
-from typing import Dict
 
 
 class BiometricEncoder(nn.Module):
     """
-    Neural network encoder for biometric features.
-
-    Processes HRV and accelerometer features into a compact embedding.
+    BiLSTM-based temporal encoder for biometric features.
     """
 
     def __init__(
         self,
-        input_dim: int = 20,
-        hidden_dims: list = [128, 64],
+        input_dim: int,
+        hidden_dim: int = 64,
         embedding_dim: int = 64,
+        num_layers: int = 1,
         dropout: float = 0.3
     ):
         """
-        Initialize biometric encoder.
-
         Args:
-            input_dim: Number of input features (HRV + accelerometer)
-            hidden_dims: List of hidden layer dimensions
+            input_dim: Number of biometric features per time step
+            hidden_dim: LSTM hidden size
             embedding_dim: Output embedding dimension
+            num_layers: Number of LSTM layers
             dropout: Dropout probability
-
-        TODO: Build neural network architecture
         """
         super().__init__()
-        # TODO: Initialize layers
-        pass  # To be implemented by Intern 2
+
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_layers > 1 else 0.0
+        )
+
+        # BiLSTM outputs hidden_dim * 2
+        self.fc = nn.Linear(hidden_dim * 2, embedding_dim)
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """
-        Encode biometric features.
+        Forward pass.
 
         Args:
-            features: Input tensor (batch_size, input_dim)
+            features: Tensor of shape (batch_size, time_steps, input_dim)
 
         Returns:
-            Embeddings tensor (batch_size, embedding_dim)
-
-        TODO: Implement forward pass
+            Embedding tensor of shape (batch_size, embedding_dim)
         """
-        pass  # To be implemented by Intern 2
+        lstm_out, _ = self.lstm(features)
+
+        # Take last time-step (context-aware representation)
+        last_step = lstm_out[:, -1, :]
+
+        embedding = self.fc(last_step)
+        return embedding
