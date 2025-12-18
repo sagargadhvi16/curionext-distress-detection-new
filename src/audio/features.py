@@ -75,13 +75,26 @@ def extract_spectral_features(
     """
     if audio.size == 0:
         raise ValueError("Cannot extract spectral features from empty audio")
-
+    
     try:
+        n_mels=64
+        # Mel spectrogram → log-mel
+        mel = librosa.feature.melspectrogram(
+            y=audio, sr=sr, n_mels=n_mels
+        )
+        log_mel = librosa.power_to_db(mel, ref=np.max)
+
+        # Chroma
+        chroma = librosa.feature.chroma_stft(y=audio, sr=sr)
+
+        # Classic spectral features
         centroid = librosa.feature.spectral_centroid(y=audio, sr=sr)
         rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sr)
         contrast = librosa.feature.spectral_contrast(y=audio, sr=sr)
 
         return {
+            "mel_spectrogram": np.mean(log_mel, axis=1),
+            "chroma": np.mean(chroma, axis=1),
             "spectral_centroid": np.mean(centroid),
             "spectral_rolloff": np.mean(rolloff),
             "spectral_contrast": np.mean(contrast, axis=1),
@@ -89,7 +102,8 @@ def extract_spectral_features(
 
     except Exception as e:
         raise ValueError(f"Failed to extract spectral features: {e}")
-    
+
+
 
 
 def extract_zero_crossing_rate(audio: np.ndarray) -> np.ndarray:
