@@ -77,7 +77,8 @@ def extract_spectral_features(
         raise ValueError("Cannot extract spectral features from empty audio")
     
     try:
-        n_mels=64
+        n_mels=64 # balanced default for 16kHz audio
+        
         # Mel spectrogram → log-mel
         mel = librosa.feature.melspectrogram(
             y=audio, sr=sr, n_mels=n_mels
@@ -104,8 +105,6 @@ def extract_spectral_features(
         raise ValueError(f"Failed to extract spectral features: {e}")
 
 
-
-
 def extract_zero_crossing_rate(audio: np.ndarray) -> np.ndarray:
     """
     Extract zero-crossing rate from audio.
@@ -126,3 +125,41 @@ def extract_zero_crossing_rate(audio: np.ndarray) -> np.ndarray:
 
     except Exception as e:
         raise ValueError(f"Failed to extract zero-crossing rate: {e}")
+    
+
+
+def extract_prosodic_features(audio:np.ndarray,sr:int)->Dict[str,float]:
+    """
+    Extract prosodic features from audio.
+
+    Prosodic features describe pitch, energy, and temporal dynamics.
+    """
+    if audio.size==0:
+        raise ValueError("Cannot extract prosodic features from empty audio")
+    if audio.ndim != 1:
+        raise ValueError("Prosodic feature extraction expects mono audio")
+
+    try:
+        # Pitch (F0)
+        f0 = librosa.yin(audio, fmin=50, fmax=500, sr=sr)
+        pitch = float(np.mean(f0[f0 > 0])) if np.any(f0 > 0) else 0.0
+
+        # Energy
+        rms = librosa.feature.rms(y=audio)
+        energy = float(np.mean(rms))
+
+        # Zero Crossing Rate (reuse helper)
+        zcr = extract_zero_crossing_rate(audio)
+
+        # Spectral centroid & rolloff (reuse spectral extractor)
+        spectral = extract_spectral_features(audio, sr)
+
+        return{
+            "pitch_f0":pitch,
+            "energy":energy,
+            "zcr":float(zcr),
+            "spectral_centroid":float(spectral["spectral_centroid"]),
+            "spectral_rolloff": float(spectral["spectral_rolloff"]),
+        }
+    except Exception as e:
+        raise ValueError(f"Failed to extract prosodic features: {e}")
