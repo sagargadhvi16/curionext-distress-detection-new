@@ -78,7 +78,7 @@ def extract_spectral_features(
     
     try:
         n_mels=64 # balanced default for 16kHz audio
-        
+
         # Mel spectrogram → log-mel
         mel = librosa.feature.melspectrogram(
             y=audio, sr=sr, n_mels=n_mels
@@ -140,7 +140,7 @@ def extract_prosodic_features(audio:np.ndarray,sr:int)->Dict[str,float]:
         raise ValueError("Prosodic feature extraction expects mono audio")
 
     try:
-        # Pitch (F0)
+        # Pitch (F0) -measures fundamental freq
         f0 = librosa.yin(audio, fmin=50, fmax=500, sr=sr)
         pitch = float(np.mean(f0[f0 > 0])) if np.any(f0 > 0) else 0.0
 
