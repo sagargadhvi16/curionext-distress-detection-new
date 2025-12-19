@@ -6,9 +6,10 @@ Combines:
 - Activity level
 - Fall detection
 - Movement pattern analysis
+- Per-child baseline normalization
 
 Output:
-- Unified biometric feature dictionary
+- Unified biometric feature dictionary (ML-ready)
 """
 
 import numpy as np
@@ -17,25 +18,36 @@ from typing import Dict, Optional
 # HRV
 from src.biometric.hrv import extract_all_hrv_features
 
-# Accelerometer-based modules
+# Accelerometer modules
 from src.biometric.activity_model import predict_activity_from_accel
 from src.biometric.fall_detection import detect_fall_from_accel
 from src.biometric.movement_pattern import analyze_movement_pattern
 
+# Baseline module
+from src.biometric.baseline import (
+    initialize_child_baseline,
+    update_child_baseline,
+    normalize_with_baseline
+)
 
-# ---------------------------------------------------------------------
-# 🔗 Main Aggregation Function
-# ---------------------------------------------------------------------
+
+# =====================================================
+# 🔗 MAIN AGGREGATION FUNCTION
+# =====================================================
 def extract_biometric_features(
     rr_intervals: Optional[np.ndarray],
-    accel_data: Optional[np.ndarray]
+    accel_data: Optional[np.ndarray],
+    child_id: Optional[str] = None,
+    update_baseline: bool = False
 ) -> Dict[str, object]:
     """
     Extract unified biometric feature vector.
 
     Args:
-        rr_intervals: RR intervals (ms or sec) or None
-        accel_data: Accelerometer data (N x 3) or None
+        rr_intervals: RR intervals (ms or sec)
+        accel_data: Accelerometer data (N x 3)
+        child_id: Unique child identifier
+        update_baseline: Whether to update baseline using this data
 
     Returns:
         Dictionary of biometric features
@@ -47,28 +59,9 @@ def extract_biometric_features(
     # ❤️ HRV FEATURES
     # -------------------------------------------------
     if rr_intervals is not None and len(rr_intervals) > 0:
-        try:
-            hrv_features = extract_all_hrv_features(rr_intervals)
-            features.update(hrv_features)
-        except Exception:
-            features.update({
-                "RMSSD": 0.0,
-                "SDNN": 0.0,
-                "pNN50": 0.0,
-                "LF": 0.0,
-                "HF": 0.0,
-                "LF_HF": 0.0,
-                "FFT_VLF": 0.0,
-                "FFT_LF": 0.0,
-                "FFT_HF": 0.0,
-                "FFT_LF_HF": 0.0,
-                "SAMPEN": 0.0,
-                "SD1": 0.0,
-                "SD2": 0.0,
-            })
+        hrv_features = extract_all_hrv_features(rr_intervals)
     else:
-        # HRV missing
-        features.update({
+        hrv_features = {
             "RMSSD": 0.0,
             "SDNN": 0.0,
             "pNN50": 0.0,
@@ -82,43 +75,57 @@ def extract_biometric_features(
             "SAMPEN": 0.0,
             "SD1": 0.0,
             "SD2": 0.0,
-        })
+        }
+
+    # -------------------------------------------------
+    # 🧒 BASELINE NORMALIZATION (HRV)
+    # -------------------------------------------------
+    if child_id is not None:
+        initialize_child_baseline(child_id)
+
+        if update_baseline:
+            update_child_baseline(child_id, hrv_features)
+
+        hrv_features = normalize_with_baseline(child_id, hrv_features)
+
+    features.update(hrv_features)
 
     # -------------------------------------------------
     # 🏃 ACCELEROMETER FEATURES
     # -------------------------------------------------
     if accel_data is not None and len(accel_data) > 0:
+
+        # Activity Level
         try:
-            # Activity level
-            activity_level = predict_activity_from_accel(accel_data)
-            features["activity_level"] = activity_level
+            features["activity_level"] = predict_activity_from_accel(accel_data)
         except Exception:
             features["activity_level"] = "unknown"
 
+        # Fall Detection
         try:
-            # Fall detection
-            fall_result = detect_fall_from_accel(accel_data)
-            features["fall_detected"] = fall_result.get("fall_detected", False)
-            features["peak_g"] = fall_result.get("peak_g", 0.0)
+            fall = detect_fall_from_accel(accel_data)
+            features["fall_detected"] = bool(fall.get("fall_detected", False))
+            features["peak_g"] = float(fall.get("peak_g", 0.0))
         except Exception:
             features["fall_detected"] = False
             features["peak_g"] = 0.0
 
+        # Movement Pattern
         try:
-            # Movement pattern
             movement = analyze_movement_pattern(accel_data)
             features["movement_pattern"] = movement.get("pattern", "unknown")
-            features["posture_change"] = movement.get("posture_change", False)
+            features["posture_change"] = bool(movement.get("posture_change", False))
             features["restless"] = bool(movement.get("restless", False))
             features["stillness"] = bool(movement.get("stillness", False))
         except Exception:
-            features["movement_pattern"] = "unknown"
-            features["posture_change"] = False
-            features["restless"] = False
-            features["stillness"] = False
+            features.update({
+                "movement_pattern": "unknown",
+                "posture_change": False,
+                "restless": False,
+                "stillness": False,
+            })
 
     else:
-        # Accelerometer missing
         features.update({
             "activity_level": "unknown",
             "fall_detected": False,
@@ -132,15 +139,20 @@ def extract_biometric_features(
     return features
 
 
-# ---------------------------------------------------------------------
-# 🧪 Quick test
-# ---------------------------------------------------------------------
+# =====================================================
+# 🧪 QUICK LOCAL TEST
+# =====================================================
 if __name__ == "__main__":
-    # Fake test inputs
     rr = np.random.normal(800, 40, 60)
     accel = np.random.normal([0, 0, 1], 0.1, size=(300, 3))
 
-    output = extract_biometric_features(rr, accel)
+    output = extract_biometric_features(
+        rr_intervals=rr,
+        accel_data=accel,
+        child_id="child_001",
+        update_baseline=True
+    )
+
     print("\nUnified Biometric Feature Vector:\n")
     for k, v in output.items():
         print(f"{k}: {v}")
