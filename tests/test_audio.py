@@ -51,19 +51,36 @@ class TestAudioPreprocessing:
         trimmed = preprocessing.trim_silence(audio, sr=16000)
         assert trimmed.size < audio.size
 
-@pytest.mark.skip(reason="Audio features not implemented yet")
 class TestAudioFeatures:
     """Test audio feature extraction."""
 
     def test_extract_mfcc(self):
-        """Test MFCC extraction."""
-        # TODO: Implement test
-        pass
+        sr = 16000
+        t = np.linspace(0, 1, sr)
+        audio = 0.5 * np.sin(2 * np.pi * 220 * t)
+
+        mfcc = features.extract_mfcc(audio, sr)
+
+        assert isinstance(mfcc, np.ndarray)
+        assert mfcc.shape == (39,)
 
     def test_extract_spectral_features(self):
-        """Test spectral features."""
-        # TODO: Implement test
-        pass
+        sr = 16000
+        t = np.linspace(0, 1, sr)
+        audio = np.sin(2 * np.pi * 220 * t)
+
+        spectral = features.extract_spectral_features(audio, sr)
+
+        assert isinstance(spectral, dict)
+        assert "mel_spectrogram" in spectral
+        assert "chroma" in spectral
+        assert "spectral_centroid" in spectral
+        assert "spectral_rolloff" in spectral
+        assert "spectral_contrast" in spectral
+
+        assert spectral["mel_spectrogram"].shape == (64,)
+        assert spectral["chroma"].shape == (12,)
+
 
 @pytest.mark.skip(reason="YAMNet encoder not implemented yet")
 class TestYAMNetEncoder:
