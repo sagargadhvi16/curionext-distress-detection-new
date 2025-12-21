@@ -175,3 +175,35 @@ class AudioEncoder(nn.Module):
         pooled = pooled.view(pooled.size(0), -1)
 
         return self.fc(pooled)
+
+class TemporalAttention(nn.Module):
+    """
+    Multi-head self-attention over temporal dimension.
+    """
+
+    def __init__(self, embed_dim: int, num_heads: int = 4):
+        super().__init__()
+
+        self.attention = nn.MultiheadAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            batch_first=True
+        )
+
+        self.norm = nn.LayerNorm(embed_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor of shape (batch, time_steps, embed_dim)
+
+        Returns:
+            Tensor of same shape with temporal attention applied
+        """
+        # Self-attention
+        attn_out, _ = self.attention(x, x, x)
+
+        # Residual connection + normalization
+        out = self.norm(x + attn_out)
+
+        return out
