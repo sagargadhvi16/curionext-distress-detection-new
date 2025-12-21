@@ -14,6 +14,7 @@ Output:
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class BiometricEncoder(nn.Module):
@@ -55,45 +56,45 @@ class BiometricEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim * 2, embedding_dim)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
-            x: Tensor of shape (batch_size, time_steps, input_dim)
+            x: Tensor or NumPy array of shape (B, T, F)
 
         Returns:
-            embedding: Tensor of shape (batch_size, embedding_dim)
+            embedding: Tensor of shape (B, embedding_dim)
         """
 
+        # -------------------------------------------------
+        # ✅ FIX: Convert NumPy → Torch if needed
+        # -------------------------------------------------
+        if isinstance(x, np.ndarray):
+            x = torch.tensor(x, dtype=torch.float32)
+
+        if not torch.is_tensor(x):
+            raise TypeError("Input must be torch.Tensor or np.ndarray")
+
         # -----------------------------
-        # BiLSTM output
+        # BiLSTM
         # -----------------------------
         lstm_out, _ = self.bilstm(x)
-        # lstm_out → (B, T, 2H)
+        # (B, T, 2H)
 
         # -----------------------------
-        # Attention weights
+        # Attention
         # -----------------------------
         attn_scores = self.attention(lstm_out)
-        # (B, T, 1)
-
         attn_weights = torch.softmax(attn_scores, dim=1)
-        # (B, T, 1)
 
-        # -----------------------------
-        # Weighted sum (context vector)
-        # -----------------------------
         context = torch.sum(attn_weights * lstm_out, dim=1)
-        # (B, 2H)
-
         context = self.dropout(context)
 
         # -----------------------------
         # Final embedding
         # -----------------------------
         embedding = self.fc(context)
-        # (B, embedding_dim)
 
         return embedding
 
@@ -104,7 +105,8 @@ class BiometricEncoder(nn.Module):
 if __name__ == "__main__":
     encoder = BiometricEncoder(input_dim=10)
 
-    dummy_input = torch.randn(1, 5, 10)  # (B=1, T=5, F=10)
-    output = encoder(dummy_input)
+    dummy_np = np.random.randn(1, 5, 10)
+    dummy_torch = torch.randn(1, 5, 10)
 
-    print("Output shape:", output.shape)
+    print("From NumPy:", encoder(dummy_np).shape)
+    print("From Torch:", encoder(dummy_torch).shape)

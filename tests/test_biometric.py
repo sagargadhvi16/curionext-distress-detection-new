@@ -144,3 +144,87 @@ class TestBiometricEncoder:
         output = encoder.forward(dummy_input)
 
         assert output.shape[-1] == 64
+
+# ======================================================
+# INTEGRATED BIOMETRIC ENCODER TESTS
+# ======================================================
+
+import numpy as np
+import torch
+import pytest
+
+from src.biometric.integrated_encoder import IntegratedBiometricEncoder
+
+
+class TestIntegratedBiometricEncoder:
+    """Tests for Integrated Biometric Encoder."""
+
+    def test_encoder_initialization(self):
+        """Encoder should initialize without errors."""
+        encoder = IntegratedBiometricEncoder(input_dim=10)
+        assert encoder is not None
+
+    def test_forward_pass_with_raw_features(self):
+        """Encoder should process raw biometric feature dicts."""
+        encoder = IntegratedBiometricEncoder(input_dim=10)
+
+        # Fake baseline data
+        baseline_data = [
+            {"RMSSD": 60, "LF_HF": 1.2, "ACC_MEAN_MAG": 1.0,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1},
+            {"RMSSD": 62, "LF_HF": 1.1, "ACC_MEAN_MAG": 1.1,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1}
+        ]
+
+        encoder.baseline_model.fit("child_01", baseline_data)
+
+        # Fake temporal biometric sequence
+        features = [
+            {"RMSSD": 30, "LF_HF": 3.0, "ACC_MEAN_MAG": 1.4,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1},
+            {"RMSSD": 28, "LF_HF": 3.5, "ACC_MEAN_MAG": 1.6,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1}
+        ]
+
+        embedding = encoder(
+            child_id="child_01",
+            raw_feature_dicts=features
+        )
+
+        assert isinstance(embedding, torch.Tensor)
+
+    def test_embedding_shape(self):
+        """Output embedding must be (1, embedding_dim)."""
+        encoder = IntegratedBiometricEncoder(input_dim=10)
+
+        features = [
+            {"RMSSD": 40, "LF_HF": 2.0, "ACC_MEAN_MAG": 1.2,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1},
+            {"RMSSD": 42, "LF_HF": 2.1, "ACC_MEAN_MAG": 1.3,
+             "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1}
+        ]
+
+        embedding = encoder(
+            child_id="child_test",
+            raw_feature_dicts=features
+        )
+
+        assert embedding.shape == (1, 64)
+
+    def test_temporal_length_variation(self):
+        """Encoder should handle different sequence lengths."""
+        encoder = IntegratedBiometricEncoder(input_dim=10)
+
+        for seq_len in [2, 5, 10]:
+            features = [
+                {"RMSSD": 50, "LF_HF": 1.5, "ACC_MEAN_MAG": 1.1,
+                 "f1": 1, "f2": 1, "f3": 1, "f4": 1, "f5": 1, "f6": 1}
+                for _ in range(seq_len)
+            ]
+
+            embedding = encoder(
+                child_id="child_var",
+                raw_feature_dicts=features
+            )
+
+            assert embedding.shape == (1, 64)
