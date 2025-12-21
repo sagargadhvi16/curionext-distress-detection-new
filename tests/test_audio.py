@@ -81,7 +81,56 @@ class TestAudioFeatures:
         assert spectral["mel_spectrogram"].shape == (64,)
         assert spectral["chroma"].shape == (12,)
 
+class TestAudioCNNEncoder:
+    """Tests for CNN-based audio encoder."""
 
+    def test_audio_cnn_encoder_init(self):
+        from src.audio.encoder import AudioCNNEncoder
+
+        encoder = AudioCNNEncoder(embedding_dim=128)
+        assert encoder is not None
+
+    def test_audio_cnn_encoder_forward_shape(self):
+        import torch
+        from src.audio.encoder import AudioCNNEncoder
+
+        encoder = AudioCNNEncoder(embedding_dim=128)
+
+        x = torch.randn(4, 1, 64, 100)
+        out = encoder(x)
+
+        assert out.shape == (4, 128)
+
+    def test_audio_cnn_encoder_variable_length(self):
+        import torch
+        from src.audio.encoder import AudioCNNEncoder
+
+        encoder = AudioCNNEncoder(embedding_dim=128)
+
+        x_short = torch.randn(2, 1, 64, 80)
+        x_long = torch.randn(2, 1, 64, 200)
+
+        out1 = encoder(x_short)
+        out2 = encoder(x_long)
+
+        assert out1.shape == out2.shape == (2, 128)
+
+    def test_audio_cnn_encoder_gradients(self):
+        import torch
+        from src.audio.encoder import AudioCNNEncoder
+
+        encoder = AudioCNNEncoder(embedding_dim=128)
+
+        x = torch.randn(4, 1, 64, 100, requires_grad=True)
+        out = encoder(x)
+
+        loss = out.mean()
+        loss.backward()
+
+        grads = [p.grad for p in encoder.parameters() if p.requires_grad]
+
+        assert all(g is not None for g in grads)
+    
 @pytest.mark.skip(reason="YAMNet encoder not implemented yet")
 class TestYAMNetEncoder:
     """Test YAMNet encoder."""
