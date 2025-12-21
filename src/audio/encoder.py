@@ -99,3 +99,62 @@ class AudioCNNEncoder(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+
+class AudioEncoder(nn.Module):
+    """
+    Complete audio encoder with CNN backbone and attention mechanism.
+
+    Outputs fixed 256-dimensional embeddings.
+    """
+
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+
+        # CNN backbone (reuse existing encoder logic)
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU()
+        )
+
+        # Attention mechanism
+        self.attention = nn.Sequential(
+            nn.Conv2d(128, 1, kernel_size=1),
+            nn.Softmax(dim=-1)
+        )
+
+        # Final projection
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(128, embedding_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: (batch, 1, freq_bins, time_steps)
+
+        Returns:
+            (batch, 256) embedding
+        """
+        features = self.cnn(x)  # (B, 128, F, T)
+
+        # Attention weights
+        attn_weights = self.attention(features)  # (B, 1, F, T)
+
+        # Apply attention
+        weighted_features = features * attn_weights
+
+        # Pool and flatten
+        pooled = self.pool(weighted_features)
+        pooled = pooled.view(pooled.size(0), -1)
+
+        return self.fc(pooled)
