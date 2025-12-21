@@ -6,6 +6,20 @@ import tensorflow as tf
 import torch
 import torch.nn as nn
 
+def init_weights(module):
+    """
+    Initialize model weights for stable training.
+    Uses He initialization for Conv and Linear layers.
+    """
+    if isinstance(module, (nn.Conv2d, nn.Linear)):
+        nn.init.kaiming_normal_(module.weight, nonlinearity="relu")
+        if module.bias is not None:
+            nn.init.constant_(module.bias, 0)
+
+    elif isinstance(module, nn.BatchNorm2d):
+        nn.init.constant_(module.weight, 1)
+        nn.init.constant_(module.bias, 0)
+
 class YAMNetExtractor:
     """
     YAMNet-based audio encoder for extracting embeddings.
@@ -84,6 +98,9 @@ class AudioCNNEncoder(nn.Module):
         )
 
         self.fc = nn.Linear(128, embedding_dim)
+
+        #appying weight initialisation
+        self.apply(init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
