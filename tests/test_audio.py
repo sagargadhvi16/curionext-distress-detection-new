@@ -131,7 +131,7 @@ class TestAudioCNNEncoder:
 
         assert all(g is not None for g in grads)
     
-@pytest.mark.skip(reason="YAMNet encoder not implemented yet")
+@pytest.mark.skip(reason="YAMNet tests skipped due to heavy TF dependency")
 class TestYAMNetEncoder:
     """Test YAMNet encoder."""
 
