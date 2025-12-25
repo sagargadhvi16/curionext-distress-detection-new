@@ -1,289 +1,218 @@
-"""HRV feature extraction and aggregation."""
+"""
+HRV Feature Extraction Module
+=============================
+
+This module computes Heart Rate Variability (HRV) features from RR intervals.
+
+Design principles:
+- Single, explicit RR unit handling (SECONDS internally)
+- Safe defaults for short windows
+- Normalized spectral power
+- Minimal hidden assumptions
+- Test-friendly public API
+
+References:
+- Task Force of the European Society of Cardiology (1996)
+- Shaffer & Ginsberg, Frontiers in Public Health
+"""
 
 import numpy as np
-from typing import Dict
 from scipy import signal
-import warnings
+
+# =====================================================
+# EXPLICIT CONSTANTS & ASSUMPTIONS
+# =====================================================
+
+RR_UNIT_INTERNAL = "seconds"     # all RR processed in seconds
+MIN_RR_COUNT = 20               # minimum RR samples for HRV
+
+# Frequency bands (Hz)
+VLF_BAND = (0.003, 0.04)
+LF_BAND = (0.04, 0.15)
+HF_BAND = (0.15, 0.40)
+
+# Lomb–Scargle frequency grid
+LOMB_FREQS = np.linspace(0.01, 0.5, 512)
+
+# FFT interpolation rate (Hz)
+FFT_FS = 4.0
+
+# Minimum duration (seconds) for VLF reliability
+MIN_VLF_DURATION = 300.0  # 5 minutes
 
 
-# ============================================================
-# RR INTERVAL EXTRACTION
-# ============================================================
+# =====================================================
+# RR PREPROCESSING
+# =====================================================
 
-def extract_rr_intervals(signal_data: np.ndarray, sr: float):
+def preprocess_rr(rr_intervals):
     """
-    Extract RR intervals from raw ECG or PPG signal using peak detection.
+    Convert RR intervals to seconds and validate input.
+
+    Args:
+        rr_intervals: array-like RR intervals (ms or s)
+
+    Returns:
+        rr (np.ndarray): RR intervals in seconds
     """
-    quality = {
-        "signal_ok": False,
-        "reason": "",
-        "num_beats": 0
-    }
+    rr = np.asarray(rr_intervals, dtype=float)
 
-    if signal_data is None or len(signal_data) < sr * 2:
-        quality["reason"] = "Signal too short"
-        return np.array([]), quality
+    # Detect milliseconds and convert
+    if np.nanmean(rr) > 10.0:
+        rr = rr / 1000.0
 
-    signal_data = np.asarray(signal_data, dtype=np.float64)
+    rr = rr[~np.isnan(rr)]
+    rr = rr[rr > 0]
 
-    signal_data -= np.mean(signal_data)
-    std = np.std(signal_data)
-    if std == 0:
-        quality["reason"] = "Flat signal"
-        return np.array([]), quality
-    signal_data /= std
+    if len(rr) < MIN_RR_COUNT:
+        raise ValueError("Not enough RR intervals for HRV computation")
 
-    min_distance = int(0.3 * sr)  # ~200 BPM upper bound
-
-    peaks, _ = signal.find_peaks(
-        signal_data,
-        distance=min_distance,
-        prominence=0.5
-    )
-
-    if len(peaks) < 3:
-        quality["reason"] = "Insufficient peaks detected"
-        return np.array([]), quality
-
-    rr_intervals_sec = np.diff(peaks) / sr
-    rr_intervals_ms = rr_intervals_sec * 1000.0
-
-    rr_intervals_ms = rr_intervals_ms[
-        (rr_intervals_ms > 300) & (rr_intervals_ms < 2000)
-    ]
-
-    if len(rr_intervals_ms) < 3:
-        quality["reason"] = "Invalid RR intervals"
-        return np.array([]), quality
-
-    quality.update({
-        "signal_ok": True,
-        "num_beats": len(rr_intervals_ms),
-        "mean_rr_ms": float(np.mean(rr_intervals_ms))
-    })
-
-    return rr_intervals_ms, quality
+    return rr
 
 
-# ============================================================
-# HRV TIME-DOMAIN FEATURES
-# ============================================================
+# =====================================================
+# TIME-DOMAIN FEATURES
+# =====================================================
 
-def extract_hrv_time_features(rr_intervals: np.ndarray) -> Dict[str, float]:
+def compute_time_domain_features(rr_intervals):
     """
-    RMSSD, SDNN, pNN50, mean HR, HR range
+    Compute time-domain HRV features.
+
+    Outputs:
+        RMSSD, SDNN in milliseconds
+        pNN50 in percentage
     """
-    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
-
-    features = {
-        "RMSSD": 0.0,
-        "SDNN": 0.0,
-        "pNN50": 0.0,
-        "mean_HR": 0.0,
-        "HR_range": 0.0,
-    }
-
-    if len(rr_intervals) < 3:
-        return features
-
-    features.update(compute_time_domain_features(rr_intervals))
-
-    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
-    hr = 60.0 / rr_sec
-    hr = hr[(hr > 30) & (hr < 220)]
-
-    if len(hr) > 0:
-        features["mean_HR"] = float(np.mean(hr))
-        features["HR_range"] = float(np.max(hr) - np.min(hr))
-
-    return features
-
-
-# ============================================================
-# HRV FREQUENCY-DOMAIN FEATURES
-# ============================================================
-
-def extract_hrv_freq_features(
-    rr_intervals: np.ndarray,
-    method: str = "welch"
-) -> Dict[str, float]:
-    """
-    VLF, LF, HF power and LF/HF ratio
-    """
-    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
-
-    features = {
-        "VLF": 0.0,
-        "LF": 0.0,
-        "HF": 0.0,
-        "LF_HF": 0.0,
-    }
-
-    if len(rr_intervals) < 8:
-        return features
-
-    features.update(compute_frequency_domain_features_fft(rr_intervals))
-    return features
-
-
-# ============================================================
-# HRV NONLINEAR FEATURES
-# ============================================================
-
-def extract_hrv_nonlinear_features(
-    rr_intervals: np.ndarray
-) -> Dict[str, float]:
-    """
-    Sample Entropy, Poincaré SD1 / SD2
-    """
-    rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
-
-    features = {
-        "SAMPEN": 0.0,
-        "SD1": 0.0,
-        "SD2": 0.0,
-    }
-
-    if len(rr_intervals) < 10:
-        return features
-
-    features.update(compute_nonlinear_hrv_features(rr_intervals))
-    return features
-
-
-# ============================================================
-# HRV FEATURE AGGREGATOR (DELIVERABLE)
-# ============================================================
-
-class HRVFeatureExtractor:
-    """
-    Unified HRV feature extractor.
-    """
-
-    def __init__(self, freq_method: str = "welch"):
-        self.freq_method = freq_method
-
-    def extract_all(self, rr_intervals: np.ndarray) -> Dict[str, float]:
-        rr_intervals = np.asarray(rr_intervals, dtype=np.float64)
-
-        features: Dict[str, float] = {}
-
-        features.update(extract_hrv_time_features(rr_intervals))
-        features.update(
-            extract_hrv_freq_features(
-                rr_intervals, method=self.freq_method
-            )
-        )
-        features.update(extract_hrv_nonlinear_features(rr_intervals))
-
-        return features
-
-
-# ============================================================
-# CORE HRV COMPUTATION UTILITIES
-# ============================================================
-
-def compute_time_domain_features(rr_intervals: np.ndarray) -> Dict[str, float]:
-    if len(rr_intervals) < 3:
-        return {"RMSSD": 0.0, "SDNN": 0.0, "pNN50": 0.0}
-
-    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
-    diff_rr = np.diff(rr_sec)
-
-    rmssd = np.sqrt(np.mean(diff_rr ** 2))
-    sdnn = np.std(rr_sec, ddof=1)
-
-    diff_rr_ms = np.abs(diff_rr) * 1000
-    pnn50 = (np.sum(diff_rr_ms > 50) / len(diff_rr)) * 100
+    rr = preprocess_rr(rr_intervals)
+    diff_rr = np.diff(rr)
 
     return {
-        "RMSSD": float(rmssd * 1000),
-        "SDNN": float(sdnn * 1000),
-        "pNN50": float(pnn50),
+        "RMSSD": np.sqrt(np.mean(diff_rr ** 2)) * 1000.0,   # ms
+        "SDNN": np.std(rr) * 1000.0,                        # ms
+        "pNN50": np.mean(np.abs(diff_rr) > 0.05) * 100.0   # %
     }
 
 
-def compute_frequency_domain_features_fft(
-    rr_intervals: np.ndarray,
-    fs: float = 4.0
-) -> Dict[str, float]:
+# =====================================================
+# FREQUENCY-DOMAIN (LOMB–SCARGLE)
+# =====================================================
 
-    features = {"VLF": 0.0, "LF": 0.0, "HF": 0.0, "LF_HF": 0.0}
+def compute_frequency_domain_features_lomb(rr_intervals):
+    """
+    Compute HRV frequency features using Lomb–Scargle PSD.
 
-    if len(rr_intervals) < 8:
-        return features
+    Notes:
+    - Handles uneven RR sampling
+    - PSD normalized by variance
+    - VLF disabled for short windows
+    """
+    rr = preprocess_rr(rr_intervals)
 
-    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
-    time_axis = np.cumsum(rr_sec)
-    duration = time_axis[-1]
+    t = np.cumsum(rr) - rr[0]
+    duration = t[-1] - t[0]
 
-    if duration < 10:
-        return features
+    rr_detrended = rr - np.mean(rr)
 
-    t_uniform = np.arange(0, duration, 1 / fs)
-    rr_interp = np.interp(t_uniform, time_axis, rr_sec)
-    rr_interp -= np.mean(rr_interp)
+    pxx = signal.lombscargle(
+        t,
+        rr_detrended,
+        2 * np.pi * LOMB_FREQS
+    )
 
-    freqs = np.fft.rfftfreq(len(rr_interp), d=1 / fs)
-    power = np.abs(np.fft.rfft(rr_interp)) ** 2
+    # Normalize power by signal variance
+    var = np.var(rr_detrended)
+    if var > 0:
+        pxx = pxx / var
 
-    def band(low, high):
-        m = (freqs >= low) & (freqs < high)
-        return np.trapz(power[m], freqs[m]) if np.any(m) else 0.0
+    def band_power(band):
+        mask = (LOMB_FREQS >= band[0]) & (LOMB_FREQS <= band[1])
+        return np.trapz(pxx[mask], LOMB_FREQS[mask]) if np.any(mask) else np.nan
 
-    features["VLF"] = band(0.003, 0.04)
-    features["LF"] = band(0.04, 0.15)
-    features["HF"] = band(0.15, 0.40)
-    features["LF_HF"] = features["LF"] / features["HF"] if features["HF"] > 0 else 0.0
+    vlf = band_power(VLF_BAND) if duration >= MIN_VLF_DURATION else np.nan
+    lf = band_power(LF_BAND)
+    hf = band_power(HF_BAND)
 
-    return features
+    return {
+        "VLF": vlf,
+        "LF": lf,
+        "HF": hf,
+        "LF_HF": lf / hf if hf > 0 else np.nan
+    }
 
 
-def compute_nonlinear_hrv_features(
-    rr_intervals: np.ndarray,
-    m: int = 2,
-    r_ratio: float = 0.2
-) -> Dict[str, float]:
+# =====================================================
+# FREQUENCY-DOMAIN (FFT / WELCH)
+# =====================================================
 
-    features = {"SAMPEN": 0.0, "SD1": 0.0, "SD2": 0.0}
+def compute_frequency_domain_features_fft(rr_intervals):
+    """
+    Compute HRV frequency features using FFT + Welch PSD.
 
-    if len(rr_intervals) < 10:
-        return features
+    Notes:
+    - Interpolates RR to uniform grid
+    - Uses Hann window to reduce leakage
+    - Power normalized (density)
+    """
+    rr = preprocess_rr(rr_intervals)
 
-    rr_sec = rr_intervals / 1000.0 if np.mean(rr_intervals) > 100 else rr_intervals
-    if np.std(rr_sec) == 0:
-        return features
+    t = np.cumsum(rr)
+    duration = t[-1] - t[0]
 
-    def sample_entropy(signal, m, r):
-        n = len(signal)
+    # Interpolate RR to uniform sampling
+    t_uniform = np.arange(t[0], t[-1], 1.0 / FFT_FS)
+    rr_interp = np.interp(t_uniform, t, rr)
 
-        def _count_similar(k):
-            count = 0
-            for i in range(n - k):
-                for j in range(i + 1, n - k):
-                    if np.all(np.abs(signal[i:i + k] - signal[j:j + k]) <= r):
-                        count += 1
-            return count
+    rr_interp = rr_interp - np.mean(rr_interp)
 
-        r = r_ratio * np.std(signal)
-        cm = _count_similar(m)
-        cm1 = _count_similar(m + 1)
+    freqs, pxx = signal.welch(
+        rr_interp,
+        fs=FFT_FS,
+        window="hann",
+        nperseg=min(256, len(rr_interp)),
+        scaling="density"
+    )
 
-        if cm == 0 or cm1 == 0:
-            return 0.0
-        return -np.log(cm1 / cm)
+    def band_power(band):
+        mask = (freqs >= band[0]) & (freqs <= band[1])
+        return np.trapz(pxx[mask], freqs[mask]) if np.any(mask) else np.nan
 
+    vlf = band_power(VLF_BAND) if duration >= MIN_VLF_DURATION else np.nan
+    lf = band_power(LF_BAND)
+    hf = band_power(HF_BAND)
+
+    return {
+        "VLF": vlf,
+        "LF": lf,
+        "HF": hf,
+        "LF_HF": lf / hf if hf > 0 else np.nan
+    }
+
+
+# =====================================================
+# PUBLIC API (TEST-SAFE)
+# =====================================================
+
+def extract_all_hrv_features(rr_intervals):
+    """
+    Unified HRV feature extractor.
+
+    Returns:
+        Dictionary containing:
+        - Time-domain features
+        - Frequency-domain features
+    """
+    features = {}
+
+    # Time-domain (always safe)
+    features.update(compute_time_domain_features(rr_intervals))
+
+    # Frequency-domain (prefer Lomb–Scargle)
     try:
-        sampen = sample_entropy(rr_sec, m, r_ratio)
+        features.update(
+            compute_frequency_domain_features_lomb(rr_intervals)
+        )
     except Exception:
-        sampen = 0.0
-
-    diff_rr = np.diff(rr_sec)
-    sd1 = np.sqrt(np.var(diff_rr) / 2.0)
-    sd2 = np.sqrt(2 * np.var(rr_sec) - (np.var(diff_rr) / 2.0))
-
-    features["SAMPEN"] = float(sampen)
-    features["SD1"] = float(sd1 * 1000)
-    features["SD2"] = float(sd2 * 1000)
+        features.update(
+            compute_frequency_domain_features_fft(rr_intervals)
+        )
 
     return features
