@@ -25,8 +25,8 @@ class BiometricEncoder(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int = 64,
-        embedding_dim: int = 64,
+        hidden_dim: int = 256,
+        embedding_dim: int = 256,
         dropout: float = 0.3
     ):
         super().__init__()
