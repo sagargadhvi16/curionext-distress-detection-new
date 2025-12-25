@@ -1,217 +1,153 @@
 """
-Biometric Anomaly Detection (ML-Based)
+Supervised Biometric Anomaly Detection (Child)
 
-Approach:
-- Unsupervised Autoencoder
-- Trained on NORMAL HRV patterns (low NASA score)
-- High reconstruction error => anomaly
+Model:
+- XGBoost Classifier (age-aware, uncertainty-aware)
 
-Deliverable:
-detect_biometric_anomaly(features, baseline)
-
-Dataset:
-data/raw/kaggle/hrv_mwl_30.xlsx
+Labels:
+0 = Normal
+1 = Stress / Anomaly
+-1 = Uncertain (borderline)
 """
 
-from typing import Dict, Any, List
 import os
-import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
+import numpy as np
+import joblib
 
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+from xgboost import XGBClassifier
 
-# =====================================================
-# 🧠 Autoencoder Model
-# =====================================================
-class HRVAutoencoder(nn.Module):
-    def __init__(self, input_dim: int):
-        super().__init__()
+# ================================
+# CONFIG
+# ================================
+DATA_PATH = "synthetic_biometric_dataset.csv"
+MODEL_PATH = "models/biometric_anomaly_xgb.pkl"
 
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16)
-        )
+LABEL_COL = "anomaly"
+DROP_COLS = ["anomaly", "state_label", "activity_label"]
 
-        self.decoder = nn.Sequential(
-            nn.Linear(16, 32),
-            nn.ReLU(),
-            nn.Linear(32, input_dim)
-        )
+# Uncertainty thresholds
+LOW_CONF = 0.30
+HIGH_CONF = 0.70
 
-    def forward(self, x):
-        z = self.encoder(x)
-        return self.decoder(z)
+# ================================
+# LOAD DATA
+# ================================
+def load_data():
+    df = pd.read_csv(DATA_PATH)
 
+    # Train only on clean samples
+    df = df[df["is_ambiguous"] == 0]
 
-# =====================================================
-# 🚨 ML-Based Anomaly Detector
-# =====================================================
-class BiometricAnomalyDetector:
-    """
-    Autoencoder-based anomaly detector for HRV.
-    """
+    y = df[LABEL_COL].astype(int)
 
-    def __init__(self):
-        self.feature_keys = ["hr", "sdnn", "rmssd", "lf", "hf", "lfhf"]
-        self.model = HRVAutoencoder(input_dim=len(self.feature_keys))
-        self.threshold: float | None = None
+    X = df.drop(columns=DROP_COLS, errors="ignore")
 
-    # -------------------------------------------------
-    # Load Kaggle dataset (CSV / XLSX)
-    # -------------------------------------------------
-    def load_dataset(
-        self,
-        data_dir: str,
-        nasa_threshold: float = 60.0
-    ) -> List[Dict[str, float]]:
-        """
-        Load NORMAL HRV samples from Kaggle dataset.
-        """
+    # One-hot encode age bucket
+    if "age_bucket" in X.columns:
+        X = pd.get_dummies(X, columns=["age_bucket"])
 
-        rows: List[Dict[str, float]] = []
+    X = X.select_dtypes(include=[np.number])
+    X = X.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-        for file in os.listdir(data_dir):
-            file_path = os.path.join(data_dir, file)
+    print(f"[INFO] Clean dataset shape: {df.shape}")
+    print(f"[INFO] Feature count: {X.shape[1]}")
+    print(f"[INFO] Class distribution:\n{y.value_counts()}")
 
-            # Load file
-            if file.endswith(".csv"):
-                df = pd.read_csv(file_path)
-            elif file.endswith(".xlsx"):
-                df = pd.read_excel(file_path)
-            else:
-                continue
+    return X, y
 
-            required_cols = set(self.feature_keys + ["nasa"])
-            if not required_cols.issubset(df.columns):
-                print(f"[WARN] Skipping {file}, missing columns")
-                continue
+# ================================
+# TRAIN MODEL
+# ================================
+def train_model():
+    print("[INFO] Loading synthetic data...")
+    X, y = load_data()
 
-            # Filter NORMAL (low stress)
-            normal_df = df[df["nasa"] <= nasa_threshold]
-
-            print(
-                f"[INFO] {file}: "
-                f"{len(normal_df)} normal samples found"
-            )
-
-            rows.extend(
-                normal_df[self.feature_keys].to_dict("records")
-            )
-
-        if len(rows) == 0:
-            raise RuntimeError(
-                "No normal HRV data found. "
-                "Increase nasa_threshold or check dataset."
-            )
-
-        return rows
-
-    # -------------------------------------------------
-    # Train autoencoder
-    # -------------------------------------------------
-    def fit(self, normal_rows: List[Dict[str, float]]) -> None:
-        X = np.array(
-            [[row[k] for k in self.feature_keys] for row in normal_rows],
-            dtype=np.float32
-        )
-
-        X_tensor = torch.tensor(X)
-
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        loss_fn = nn.MSELoss()
-
-        self.model.train()
-        for _ in range(80):
-            optimizer.zero_grad()
-            recon = self.model(X_tensor)
-            loss = loss_fn(recon, X_tensor)
-            loss.backward()
-            optimizer.step()
-
-        # Compute anomaly threshold
-        with torch.no_grad():
-            recon = self.model(X_tensor)
-            errors = torch.mean((recon - X_tensor) ** 2, dim=1).numpy()
-
-        self.threshold = float(np.mean(errors) + 2 * np.std(errors))
-
-    # -------------------------------------------------
-    # Detect anomaly (core ML logic)
-    # -------------------------------------------------
-    def detect(self, features: Dict[str, Any]) -> Dict[str, Any]:
-        if self.threshold is None:
-            raise RuntimeError("Detector not trained. Call fit() first.")
-
-        x = np.array(
-            [[features.get(k, 0.0) for k in self.feature_keys]],
-            dtype=np.float32
-        )
-
-        x_tensor = torch.tensor(x)
-
-        with torch.no_grad():
-            recon = self.model(x_tensor)
-            error = torch.mean((recon - x_tensor) ** 2).item()
-
-        anomaly_score = min(error / self.threshold, 1.0)
-
-        return {
-            "anomaly_detected": error > self.threshold,
-            "anomaly_score": round(anomaly_score, 2),
-            "reason": "ML-based HRV anomaly"
-        }
-
-
-# =====================================================
-# ✅ DELIVERABLE FUNCTION (REQUIRED BY TASK)
-# =====================================================
-def detect_biometric_anomaly(
-    features: Dict[str, Any],
-    baseline: BiometricAnomalyDetector
-) -> Dict[str, Any]:
-    """
-    Deliverable-compliant anomaly detection function.
-
-    Args:
-        features: Unified biometric feature dictionary
-        baseline: Trained BiometricAnomalyDetector (ML baseline)
-
-    Returns:
-        Anomaly detection result
-    """
-    return baseline.detect(features)
-
-
-# =====================================================
-# 🧪 Local Test (REAL DATA)
-# =====================================================
-if __name__ == "__main__":
-
-    DATA_PATH = "data/raw/kaggle"
-
-    detector = BiometricAnomalyDetector()
-
-    print("[INFO] Loading dataset...")
-    normal_data = detector.load_dataset(DATA_PATH)
-
-    print(f"[INFO] Training on {len(normal_data)} normal samples...")
-    detector.fit(normal_data)
-
-    # Example stressed HRV
-    test_sample = {
-        "hr": 80,
-        "sdnn": 40.5,
-        "rmssd": 35.5,
-        "lf": 69.77,
-        "hf": 30.14,
-        "lfhf": 2.31
-    }
-
-    result = detect_biometric_anomaly(
-        features=test_sample,
-        baseline=detector
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    print("\nML-Based Anomaly Detection Result:\n", result)
+    scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
+
+    print("[INFO] Training XGBoost...")
+    model = XGBClassifier(
+        n_estimators=500,
+        max_depth=4,
+        learning_rate=0.08,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        min_child_weight=3,
+        reg_lambda=0.5,
+        scale_pos_weight=scale_pos_weight,
+        objective="binary:logistic",
+        eval_metric="auc",
+        random_state=42,
+        n_jobs=-1
+    )
+
+    model.fit(X_train, y_train)
+
+    # ================================
+    # UNCERTAINTY-AWARE EVALUATION
+    # ================================
+    probs = model.predict_proba(X_test)[:, 1]
+
+    confident_mask = (probs < LOW_CONF) | (probs > HIGH_CONF)
+    confident_probs = probs[confident_mask]
+    confident_labels = y_test.iloc[confident_mask]
+
+    confident_preds = (confident_probs > HIGH_CONF).astype(int)
+
+    coverage = confident_mask.mean()
+    acc_confident = accuracy_score(confident_labels, confident_preds)
+
+    print("\n[INFO] Uncertainty-aware evaluation")
+    print(f"Coverage (confident predictions): {coverage:.2%}")
+    print(f"Accuracy on confident predictions: {acc_confident:.3f}")
+
+    print("\nClassification Report (confident only):\n")
+    print(classification_report(confident_labels, confident_preds, digits=3))
+
+    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+    joblib.dump(model, MODEL_PATH)
+    print(f"✅ Model saved at {MODEL_PATH}")
+
+# ================================
+# INFERENCE
+# ================================
+def detect_biometric_anomaly(features: dict) -> dict:
+    model = joblib.load(MODEL_PATH)
+
+    df = pd.DataFrame([features])
+
+    if "age_bucket" in df.columns:
+        df = pd.get_dummies(df, columns=["age_bucket"])
+
+    df = df.select_dtypes(include=[np.number])
+    df = df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    prob = float(model.predict_proba(df)[0][1])
+
+    if prob < LOW_CONF:
+        decision = 0
+        label = "normal"
+    elif prob > HIGH_CONF:
+        decision = 1
+        label = "anomaly"
+    else:
+        decision = -1
+        label = "uncertain"
+
+    return {
+        "decision": label,
+        "anomaly_score": round(prob, 3),
+        "reason": "XGBoost with uncertainty handling"
+    }
+
+# ================================
+# RUN
+# ================================
+if __name__ == "__main__":
+    train_model()
