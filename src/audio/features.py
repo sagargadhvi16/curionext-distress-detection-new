@@ -1,4 +1,5 @@
-"""Audio feature extraction."""
+"""Audio feature extraction (temporal-preserving)."""
+
 import librosa
 import numpy as np
 from typing import Dict
@@ -12,14 +13,9 @@ def extract_mfcc(
     """
     Extract MFCC features from audio.
 
-    Args:
-        audio: Audio signal array
-        sr: Sample rate
-        n_mfcc: Number of MFCC coefficients
-
     Returns:
-        39-dimensional feature vector
-        (13 MFCC + 13 delta + 13 delta-delta)
+        MFCC + delta + delta-delta features
+        Shape: (39, T)
     """
     if audio.size == 0:
         raise ValueError("Cannot extract MFCC from empty audio")
@@ -29,28 +25,14 @@ def extract_mfcc(
 
     try:
         # MFCCs: (13, T)
-        mfcc = librosa.feature.mfcc(
-            y=audio,
-            sr=sr,
-            n_mfcc=n_mfcc
-        )
+        mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)
 
-        # First-order delta
+        # Temporal derivatives
         delta = librosa.feature.delta(mfcc)
-
-        # Second-order delta-delta
         delta2 = librosa.feature.delta(mfcc, order=2)
 
-        # Mean pooling across time
-        mfcc_mean = np.mean(mfcc, axis=1)
-        delta_mean = np.mean(delta, axis=1)
-        delta2_mean = np.mean(delta2, axis=1)
-
-        # Concatenate → (39,)
-        features = np.concatenate(
-            [mfcc_mean, delta_mean, delta2_mean],
-            axis=0
-        )
+        # Stack along feature axis → (39, T)
+        features = np.concatenate([mfcc, delta, delta2], axis=0)
 
         return features
 
@@ -63,42 +45,32 @@ def extract_spectral_features(
     sr: int
 ) -> Dict[str, np.ndarray]:
     """
-    Extract spectral features (centroid, rolloff, contrast).
-
-    Args:
-        audio: Audio signal array
-        sr: Sample rate
+    Extract spectral features while preserving time.
 
     Returns:
-        Dictionary of spectral features
-
+        Dict of temporal spectral features
     """
     if audio.size == 0:
         raise ValueError("Cannot extract spectral features from empty audio")
-    
+
     try:
-        n_mels=64 # balanced default for 16kHz audio
+        n_mels = 64
 
-        # Mel spectrogram → log-mel
-        mel = librosa.feature.melspectrogram(
-            y=audio, sr=sr, n_mels=n_mels
-        )
-        log_mel = librosa.power_to_db(mel, ref=np.max)
+        mel = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=n_mels)
+        log_mel = librosa.power_to_db(mel, ref=np.max)      # (64, T)
 
-        # Chroma
-        chroma = librosa.feature.chroma_stft(y=audio, sr=sr)
+        chroma = librosa.feature.chroma_stft(y=audio, sr=sr)  # (12, T)
 
-        # Classic spectral features
-        centroid = librosa.feature.spectral_centroid(y=audio, sr=sr)
-        rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sr)
-        contrast = librosa.feature.spectral_contrast(y=audio, sr=sr)
+        centroid = librosa.feature.spectral_centroid(y=audio, sr=sr)  # (1, T)
+        rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sr)    # (1, T)
+        contrast = librosa.feature.spectral_contrast(y=audio, sr=sr)  # (7, T)
 
         return {
-            "mel_spectrogram": np.mean(log_mel, axis=1),
-            "chroma": np.mean(chroma, axis=1),
-            "spectral_centroid": np.mean(centroid),
-            "spectral_rolloff": np.mean(rolloff),
-            "spectral_contrast": np.mean(contrast, axis=1),
+            "mel_spectrogram": log_mel,
+            "chroma": chroma,
+            "spectral_centroid": centroid,
+            "spectral_rolloff": rolloff,
+            "spectral_contrast": contrast,
         }
 
     except Exception as e:
@@ -107,59 +79,52 @@ def extract_spectral_features(
 
 def extract_zero_crossing_rate(audio: np.ndarray) -> np.ndarray:
     """
-    Extract zero-crossing rate from audio.
-
-    Args:
-        audio: Audio signal array
+    Extract zero-crossing rate (temporal).
 
     Returns:
-        Zero-crossing rate array
-
+        ZCR with shape (1, T)
     """
     if audio.size == 0:
         raise ValueError("Cannot extract ZCR from empty audio")
 
     try:
-        zcr = librosa.feature.zero_crossing_rate(audio)
-        return np.mean(zcr)
+        return librosa.feature.zero_crossing_rate(audio)
 
     except Exception as e:
         raise ValueError(f"Failed to extract zero-crossing rate: {e}")
-    
 
 
-def extract_prosodic_features(audio:np.ndarray,sr:int)->Dict[str,float]:
+def extract_prosodic_features(
+    audio: np.ndarray,
+    sr: int
+) -> Dict[str, np.ndarray]:
     """
-    Extract prosodic features from audio.
+    Extract prosodic features (temporal).
 
-    Prosodic features describe pitch, energy, and temporal dynamics.
+    Returns:
+        Dict with time-varying pitch, energy, ZCR
     """
-    if audio.size==0:
+    if audio.size == 0:
         raise ValueError("Cannot extract prosodic features from empty audio")
+
     if audio.ndim != 1:
         raise ValueError("Prosodic feature extraction expects mono audio")
 
     try:
-        # Pitch (F0) -measures fundamental freq
+        # Pitch (F0) over time
         f0 = librosa.yin(audio, fmin=50, fmax=500, sr=sr)
-        pitch = float(np.mean(f0[f0 > 0])) if np.any(f0 > 0) else 0.0
 
-        # Energy
-        rms = librosa.feature.rms(y=audio)
-        energy = float(np.mean(rms))
+        # Energy over time
+        rms = librosa.feature.rms(y=audio)  # (1, T)
 
-        # Zero Crossing Rate (reuse helper)
-        zcr = extract_zero_crossing_rate(audio)
+        # Zero-crossing rate over time
+        zcr = extract_zero_crossing_rate(audio)  # (1, T)
 
-        # Spectral centroid & rolloff (reuse spectral extractor)
-        spectral = extract_spectral_features(audio, sr)
-
-        return{
-            "pitch_f0":pitch,
-            "energy":energy,
-            "zcr":float(zcr),
-            "spectral_centroid":float(spectral["spectral_centroid"]),
-            "spectral_rolloff": float(spectral["spectral_rolloff"]),
+        return {
+            "pitch_f0": f0,
+            "energy": rms[0],
+            "zcr": zcr[0],
         }
+
     except Exception as e:
         raise ValueError(f"Failed to extract prosodic features: {e}")
