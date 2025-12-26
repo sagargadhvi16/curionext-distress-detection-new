@@ -2,19 +2,16 @@
 Synthetic Audio Generation for Child Distress Detection (FINAL – AGE 3+)
 
 Kept sources:
-- crying_generic                     → real cry
-- crying_structured/{discomfort,tired} → auxiliary distress
-- screaming/Screaming                → high-arousal distress
-- RAVDESS (anger, fear, sad)          → adult speech → child distress
-- BESD (ANGER, FEAR, SAD only)        → bilingual robustness
-- ESC-50                              → background noise only
-
-Removed:
-- hungry, burping, belly_pain
-- BESD: disgust, happy, neutral
+- train_cry                     → real cry
+- test_cry                      → cry (3+ years)
+- screaming/Screaming           → high-arousal distress
+- RAVDESS (anger, fear, sad)    → adult speech → child distress
+- BESD (ANGER, FEAR, SAD only)  → bilingual robustness
+- ESC-50                        → background noise only
 
 Goal:
-Acoustic similarity for distress detection (not realism, not voice cloning)
+Acoustic similarity for distress detection
+(Not realism, not voice cloning)
 
 Aligned with CurioNext MVP.
 """
@@ -26,11 +23,11 @@ from pathlib import Path
 import random
 import csv
 
-# -----------------------------
+# -------------------------------------------------
 # Core parameters
-# -----------------------------
+# -------------------------------------------------
 SR = 16000
-DURATION_RANGE = (3.0, 6.0)
+DURATION_RANGE = (4.0, 6.0)     # FINAL: 4–6 seconds
 TARGET_SAMPLES = 500
 
 OUT_DIR = Path("data/synthetic/audio/distress")
@@ -38,31 +35,31 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 META_PATH = OUT_DIR / "metadata.csv"
 
-# -----------------------------
+# -------------------------------------------------
 # Dataset paths
-# -----------------------------
+# -------------------------------------------------
 BASE = Path("data/raw/audio")
 
-CRY_GENERIC = BASE / "crying_generic"
-CRY_STRUCT = BASE / "crying_structured"
+TRAIN_CRY = BASE / "train_cry"
+TEST_CRY = BASE / "test_cry"
 SCREAMING = BASE / "screaming" / "Screaming"
 RAVDESS = BASE / "ravdess"
 BESD = BASE / "besd"
 ESC50 = BASE / "esc50"
 
-# -----------------------------
+# -------------------------------------------------
 # Utility
-# -----------------------------
-def load_audio(path: Path, sr=SR):
-    audio, _ = librosa.load(path, sr=sr, mono=True)
+# -------------------------------------------------
+def load_audio(path: Path):
+    audio, _ = librosa.load(path, sr=SR, mono=True)
     return audio.astype(np.float32)
 
 def normalize(audio):
     return audio / (np.max(np.abs(audio)) + 1e-6)
 
-# -----------------------------
-# Augmentations (child-like)
-# -----------------------------
+# -------------------------------------------------
+# Augmentations (child-like distress)
+# -------------------------------------------------
 def pitch_shift(audio):
     return librosa.effects.pitch_shift(
         audio, sr=SR, n_steps=random.uniform(3, 7)
@@ -90,33 +87,25 @@ def add_background_noise(audio):
     if not ESC50.exists() or random.random() > 0.6:
         return audio, "none"
 
-    noise = load_audio(random.choice(list(ESC50.glob("*.wav"))))
+    noise_file = random.choice(list(ESC50.glob("*.wav")))
+    noise = load_audio(noise_file)
+
     if len(noise) < len(audio):
-        noise = np.tile(noise, int(np.ceil(len(audio)/len(noise))))
+        noise = np.tile(noise, int(np.ceil(len(audio) / len(noise))))
     noise = noise[:len(audio)]
 
     snr = random.uniform(5, 15)
-    scale = np.sqrt(np.mean(audio**2) / (10**(snr/10) * np.mean(noise**2) + 1e-9))
+    scale = np.sqrt(
+        np.mean(audio**2) / (10**(snr / 10) * np.mean(noise**2) + 1e-9)
+    )
+
     return audio + scale * noise, "esc50"
 
-# -----------------------------
+# -------------------------------------------------
 # Dataset collectors
-# -----------------------------
-def collect_wavs(folder):
+# -------------------------------------------------
+def collect_wavs(folder: Path):
     return list(folder.rglob("*.wav")) if folder.exists() else []
-
-def collect_cry_structured():
-    files = []
-    for sub in ["discomfort", "tired"]:
-        files += collect_wavs(CRY_STRUCT / sub)
-    return files
-
-def collect_besd():
-    files = []
-    for lang in ["ENGLISH", "TELUGU"]:
-        for emo in ["ANGER", "FEAR", "SAD"]:
-            files += collect_wavs(BESD / lang / emo)
-    return files
 
 def collect_ravdess():
     files = []
@@ -129,24 +118,32 @@ def collect_ravdess():
             pass
     return files
 
-# -----------------------------
+def collect_besd():
+    files = []
+    for lang in ["ENGLISH", "TELUGU"]:
+        for emo in ["ANGER", "FEAR", "SAD"]:
+            files += collect_wavs(BESD / lang / emo)
+    return files
+
+# -------------------------------------------------
 # Source pools (balanced)
-# -----------------------------
+# -------------------------------------------------
 SOURCES = [
-    ("crying_generic", collect_wavs(CRY_GENERIC), 0.35),
-    ("crying_structured", collect_cry_structured(), 0.15),
+    ("train_cry", collect_wavs(TRAIN_CRY), 0.35),
+    ("test_cry", collect_wavs(TEST_CRY), 0.15),
     ("screaming", collect_wavs(SCREAMING), 0.20),
     ("ravdess", collect_ravdess(), 0.20),
     ("besd", collect_besd(), 0.10),
 ]
 
-# -----------------------------
-# Generation
-# -----------------------------
+# -------------------------------------------------
+# Generation logic
+# -------------------------------------------------
 def generate_one(idx, writer):
-    r, acc = random.random(), 0
-    for name, pool, p in SOURCES:
-        acc += p
+    r, acc = random.random(), 0.0
+
+    for name, pool, prob in SOURCES:
+        acc += prob
         if r <= acc and pool:
             src = random.choice(pool)
             src_name = name
@@ -155,38 +152,39 @@ def generate_one(idx, writer):
         return
 
     audio = load_audio(src)
-    target_len = int(random.uniform(*DURATION_RANGE) * SR)
-    #audio = audio[:target_len]
 
-#4-5 sec syn audio
+    # ---- Distress conversion ----
+    audio = emphasize_high_freq(audio)
+    audio = pitch_shift(audio)
+    audio = time_stretch(audio)
+    audio = cry_burst_envelope(audio)
+
+    # ---- Add noise ----
+    audio, noise_used = add_background_noise(audio)
+    audio = normalize(audio)
+
+    # ---- Enforce duration LAST ----
+    target_len = int(random.uniform(*DURATION_RANGE) * SR)
     if len(audio) >= target_len:
         audio = audio[:target_len]
     else:
         audio = np.pad(audio, (0, target_len - len(audio)))
 
-
-    audio = emphasize_high_freq(audio)
-    audio = pitch_shift(audio)
-    audio = time_stretch(audio)
-    audio = cry_burst_envelope(audio)
-    audio, noise = add_background_noise(audio)
-    audio = normalize(audio)
-
-    out = f"distress_{idx:05d}.wav"
-    sf.write(OUT_DIR / out, audio, SR)
+    out_name = f"distress_{idx:05d}.wav"
+    sf.write(OUT_DIR / out_name, audio, SR)
 
     writer.writerow({
-        "file": out,
+        "file": out_name,
         "source": src_name,
         "original_path": str(src),
-        "noise": noise
+        "noise": noise_used
     })
 
-# -----------------------------
-# Entry
-# -----------------------------
+# -------------------------------------------------
+# Entry point
+# -------------------------------------------------
 if __name__ == "__main__":
-    print("Generating synthetic distress audio (age 3+)")
+    print("Generating synthetic distress audio (AGE 3+)")
 
     with open(META_PATH, "w", newline="") as f:
         writer = csv.DictWriter(
@@ -197,6 +195,6 @@ if __name__ == "__main__":
         for i in range(TARGET_SAMPLES):
             generate_one(i, writer)
             if (i + 1) % 50 == 0:
-                print(f"{i+1}/{TARGET_SAMPLES}")
+                print(f"{i + 1}/{TARGET_SAMPLES} samples generated")
 
-    print("✅ Done")
+    print("✅ Synthetic distress dataset generation complete")
