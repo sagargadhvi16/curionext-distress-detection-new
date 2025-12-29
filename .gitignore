@@ -30,15 +30,16 @@ models/pretrained/*
 !models/pretrained/.gitkeep
 
 # Data - NEVER commit
-*.wav
-*.mp3
-*.flac
-data/raw/*
-data/processed/*
-data/synthetic/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!data/synthetic/.gitkeep
+#*.wav
+#.mp3
+#*.flac
+#data/raw/*
+#data/processed/*
+#data/synthetic/*
+#!data/raw/.gitkeep
+#!data/processed/.gitkeep
+#!data/synthetic/.gitkeep
+
 
 # Secrets
 .env
