@@ -1,4 +1,4 @@
-# Python
+# PYTHON
 __pycache__/
 *.py[cod]
 *.so
@@ -6,46 +6,67 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# Virtual environments
 venv/
 env/
 .venv/
 
-# IDEs
+# IDEs / OS
 .vscode/
 .idea/
 *.swp
 .DS_Store
+Thumbs.db
 
-# Jupyter
+# JUPYTER
 .ipynb_checkpoints/
 
-# Models - NEVER commit
+# MODELS
 *.pth
 *.pt
 *.h5
 *.onnx
+
 models/checkpoints/*
 models/pretrained/*
+
+# Keep folder structure
 !models/checkpoints/.gitkeep
 !models/pretrained/.gitkeep
 
-# Data - NEVER commit
+# DATA
+
+# Audio / signal formats
 *.wav
 *.mp3
 *.flac
+*.csv
+*.tsv
+*.edf
+*.mat
+*.npy
+*.npz
+*.hdf5
+*.h5
+
+# Data directories
 data/raw/*
 data/processed/*
 data/synthetic/*
+
+# Keep empty folders only
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/synthetic/.gitkeep
 
-# Secrets
+# SECRETS / CREDENTIALS
 .env
 *.key
 credentials.json
+secrets.json
 
-# Logs
+# LOGS / EXPERIMENTS
 *.log
 logs/
 wandb/
