@@ -58,7 +58,7 @@ class ValidationResult:
 class DatasetValidator:
     """Validator for all datasets."""
     
-    # Expected dataset structures and counts
+    # Expected dataset structures and counts (based on available datasets)
     DATASET_EXPECTATIONS = {
         'esc50': {
             'path': 'data/raw/audio/esc50',
@@ -74,24 +74,34 @@ class DatasetValidator:
             'structure': 'emotion_based',
             'expected_emotions': ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust', 'surprised']
         },
-        'audioset': {
-            'path': 'data/raw/audio/audioset',
+        'train_cry': {
+            'path': 'data/raw/audio/train_cry',
             'expected_count': None,  # Varies
-            'file_extensions': ['.wav', '.mp3'],
+            'file_extensions': ['.wav'],
+            'structure': 'flat',
+            'description': 'Real cry samples for training'
+        },
+        'test_cry': {
+            'path': 'data/raw/audio/test_cry',
+            'expected_count': None,  # Varies
+            'file_extensions': ['.wav'],
+            'structure': 'flat',
+            'description': 'Cry samples for testing (3+ years)'
+        },
+        'screaming': {
+            'path': 'data/raw/audio/screaming',
+            'expected_count': None,  # Varies
+            'file_extensions': ['.wav'],
             'structure': 'category_based',
-            'categories': ['crying', 'screaming', 'human_sounds']
+            'categories': ['Screaming', 'NotScreaming']
         },
-        'wesad': {
-            'path': 'data/raw/biometric/wesad',
-            'expected_count': None,
-            'file_extensions': ['.pkl', '.mat', '.json'],
-            'structure': 'subject_based'
-        },
-        'pamap2': {
-            'path': 'data/raw/biometric/pamap2',
-            'expected_count': None,
-            'file_extensions': ['.dat', '.csv'],
-            'structure': 'subject_based'
+        'besd': {
+            'path': 'data/raw/audio/besd',
+            'expected_count': None,  # Varies
+            'file_extensions': ['.wav'],
+            'structure': 'language_emotion_based',
+            'languages': ['ENGLISH', 'TELUGU'],
+            'emotions': ['ANGER', 'FEAR', 'SAD', 'DISGUST', 'HAPPY', 'NEUTRAL']
         }
     }
     
@@ -418,22 +428,22 @@ class DatasetValidator:
         
         return result
     
-    def validate_audioset(self) -> ValidationResult:
-        """Validate AudioSet subset dataset."""
-        self.logger.info("Validating AudioSet dataset...")
+    def validate_train_cry(self) -> ValidationResult:
+        """Validate train_cry dataset."""
+        self.logger.info("Validating train_cry dataset...")
         result = ValidationResult(
-            dataset_name='AudioSet',
+            dataset_name='train_cry',
             status='missing'
         )
         
-        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['audioset']['path']
+        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['train_cry']['path']
         
         if not dataset_path.exists():
             result.errors.append(f"Dataset directory does not exist: {dataset_path}")
             result.status = 'missing'
             return result
         
-        extensions = self.DATASET_EXPECTATIONS['audioset']['file_extensions']
+        extensions = self.DATASET_EXPECTATIONS['train_cry']['file_extensions']
         result.actual_count = self.count_files_in_directory(dataset_path, extensions, recursive=True)
         result.total_files = result.actual_count
         
@@ -443,8 +453,7 @@ class DatasetValidator:
             return result
         
         # Sample validation
-        sample_files = list(dataset_path.rglob('*'))[:50]
-        sample_files = [f for f in sample_files if f.is_file() and f.suffix.lower() in ['.wav', '.mp3']]
+        sample_files = list(dataset_path.glob('*.wav'))[:50]
         
         valid_count = 0
         for file_path in sample_files:
@@ -467,41 +476,36 @@ class DatasetValidator:
         
         return result
     
-    def validate_wesad(self) -> ValidationResult:
-        """Validate WESAD dataset."""
-        self.logger.info("Validating WESAD dataset...")
+    def validate_test_cry(self) -> ValidationResult:
+        """Validate test_cry dataset."""
+        self.logger.info("Validating test_cry dataset...")
         result = ValidationResult(
-            dataset_name='WESAD',
+            dataset_name='test_cry',
             status='missing'
         )
         
-        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['wesad']['path']
+        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['test_cry']['path']
         
         if not dataset_path.exists():
             result.errors.append(f"Dataset directory does not exist: {dataset_path}")
             result.status = 'missing'
             return result
         
-        extensions = self.DATASET_EXPECTATIONS['wesad']['file_extensions']
+        extensions = self.DATASET_EXPECTATIONS['test_cry']['file_extensions']
         result.actual_count = self.count_files_in_directory(dataset_path, extensions, recursive=True)
         result.total_files = result.actual_count
         
         if result.actual_count == 0:
-            result.errors.append("No data files found in dataset directory")
+            result.errors.append("No audio files found in dataset directory")
             result.status = 'missing'
             return result
         
         # Sample validation
-        sample_files = list(dataset_path.rglob('*'))[:20]
-        sample_files = [f for f in sample_files if f.is_file() and f.suffix.lower() in extensions]
+        sample_files = list(dataset_path.glob('*.wav'))[:50]
         
         valid_count = 0
         for file_path in sample_files:
-            if file_path.suffix.lower() == '.json':
-                is_valid, _ = self.validate_json_file(file_path)
-            else:
-                is_valid = file_path.stat().st_size > 0
-            
+            is_valid, _ = self.validate_audio_file(file_path)
             if is_valid:
                 valid_count += 1
                 result.file_integrity_checks[str(file_path)] = True
@@ -516,41 +520,40 @@ class DatasetValidator:
             result.valid_files = result.actual_count
             result.invalid_files = 0
         
-        result.status = 'valid' if result.invalid_files == 0 and result.actual_count > 0 else 'partial'
+        result.status = 'valid' if result.invalid_files == 0 else 'partial'
         
         return result
     
-    def validate_pamap2(self) -> ValidationResult:
-        """Validate PAMAP2 dataset."""
-        self.logger.info("Validating PAMAP2 dataset...")
+    def validate_screaming(self) -> ValidationResult:
+        """Validate screaming dataset."""
+        self.logger.info("Validating screaming dataset...")
         result = ValidationResult(
-            dataset_name='PAMAP2',
+            dataset_name='screaming',
             status='missing'
         )
         
-        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['pamap2']['path']
+        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['screaming']['path']
         
         if not dataset_path.exists():
             result.errors.append(f"Dataset directory does not exist: {dataset_path}")
             result.status = 'missing'
             return result
         
-        extensions = self.DATASET_EXPECTATIONS['pamap2']['file_extensions']
+        extensions = self.DATASET_EXPECTATIONS['screaming']['file_extensions']
         result.actual_count = self.count_files_in_directory(dataset_path, extensions, recursive=True)
         result.total_files = result.actual_count
         
         if result.actual_count == 0:
-            result.errors.append("No data files found in dataset directory")
+            result.errors.append("No audio files found in dataset directory")
             result.status = 'missing'
             return result
         
         # Sample validation
-        sample_files = list(dataset_path.rglob('*'))[:20]
-        sample_files = [f for f in sample_files if f.is_file() and f.suffix.lower() in extensions]
+        sample_files = list(dataset_path.rglob('*.wav'))[:50]
         
         valid_count = 0
         for file_path in sample_files:
-            is_valid, _ = self.validate_csv_file(file_path)
+            is_valid, _ = self.validate_audio_file(file_path)
             if is_valid:
                 valid_count += 1
                 result.file_integrity_checks[str(file_path)] = True
@@ -565,7 +568,55 @@ class DatasetValidator:
             result.valid_files = result.actual_count
             result.invalid_files = 0
         
-        result.status = 'valid' if result.invalid_files == 0 and result.actual_count > 0 else 'partial'
+        result.status = 'valid' if result.invalid_files == 0 else 'partial'
+        
+        return result
+    
+    def validate_besd(self) -> ValidationResult:
+        """Validate BESD (Bilingual Emotional Speech Dataset) dataset."""
+        self.logger.info("Validating BESD dataset...")
+        result = ValidationResult(
+            dataset_name='BESD',
+            status='missing'
+        )
+        
+        dataset_path = self.base_path / self.DATASET_EXPECTATIONS['besd']['path']
+        
+        if not dataset_path.exists():
+            result.errors.append(f"Dataset directory does not exist: {dataset_path}")
+            result.status = 'missing'
+            return result
+        
+        extensions = self.DATASET_EXPECTATIONS['besd']['file_extensions']
+        result.actual_count = self.count_files_in_directory(dataset_path, extensions, recursive=True)
+        result.total_files = result.actual_count
+        
+        if result.actual_count == 0:
+            result.errors.append("No audio files found in dataset directory")
+            result.status = 'missing'
+            return result
+        
+        # Sample validation
+        sample_files = list(dataset_path.rglob('*.wav'))[:50]
+        
+        valid_count = 0
+        for file_path in sample_files:
+            is_valid, _ = self.validate_audio_file(file_path)
+            if is_valid:
+                valid_count += 1
+                result.file_integrity_checks[str(file_path)] = True
+            else:
+                result.file_integrity_checks[str(file_path)] = False
+        
+        if len(sample_files) > 0:
+            valid_ratio = valid_count / len(sample_files)
+            result.valid_files = int(result.actual_count * valid_ratio)
+            result.invalid_files = result.actual_count - result.valid_files
+        else:
+            result.valid_files = result.actual_count
+            result.invalid_files = 0
+        
+        result.status = 'valid' if result.invalid_files == 0 else 'partial'
         
         return result
     
@@ -580,9 +631,10 @@ class DatasetValidator:
         
         self.results['esc50'] = self.validate_esc50()
         self.results['ravdess'] = self.validate_ravdess()
-        self.results['audioset'] = self.validate_audioset()
-        self.results['wesad'] = self.validate_wesad()
-        self.results['pamap2'] = self.validate_pamap2()
+        self.results['train_cry'] = self.validate_train_cry()
+        self.results['test_cry'] = self.validate_test_cry()
+        self.results['screaming'] = self.validate_screaming()
+        self.results['besd'] = self.validate_besd()
         
         return self.results
     
@@ -612,9 +664,9 @@ class DatasetValidator:
         report_lines.append("SUMMARY")
         report_lines.append("-" * 80)
         report_lines.append(f"Total Datasets: {total_datasets}")
-        report_lines.append(f"✓ Valid: {valid_count}")
-        report_lines.append(f"⚠ Partial: {partial_count}")
-        report_lines.append(f"✗ Missing: {missing_count}")
+        report_lines.append(f"[OK] Valid: {valid_count}")
+        report_lines.append(f"[PARTIAL] Partial: {partial_count}")
+        report_lines.append(f"[MISSING] Missing: {missing_count}")
         report_lines.append("")
         
         # Detailed results
@@ -679,7 +731,7 @@ def main():
     parser.add_argument(
         '--datasets',
         nargs='+',
-        choices=['esc50', 'ravdess', 'audioset', 'wesad', 'pamap2', 'all'],
+        choices=['esc50', 'ravdess', 'train_cry', 'test_cry', 'screaming', 'besd', 'all'],
         default=['all'],
         help='Datasets to validate (default: all)'
     )
@@ -714,12 +766,14 @@ def main():
                 results['esc50'] = validator.validate_esc50()
             elif dataset == 'ravdess':
                 results['ravdess'] = validator.validate_ravdess()
-            elif dataset == 'audioset':
-                results['audioset'] = validator.validate_audioset()
-            elif dataset == 'wesad':
-                results['wesad'] = validator.validate_wesad()
-            elif dataset == 'pamap2':
-                results['pamap2'] = validator.validate_pamap2()
+            elif dataset == 'train_cry':
+                results['train_cry'] = validator.validate_train_cry()
+            elif dataset == 'test_cry':
+                results['test_cry'] = validator.validate_test_cry()
+            elif dataset == 'screaming':
+                results['screaming'] = validator.validate_screaming()
+            elif dataset == 'besd':
+                results['besd'] = validator.validate_besd()
         validator.results = results
     
     # Generate and print report
