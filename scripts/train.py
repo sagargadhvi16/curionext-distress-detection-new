@@ -22,26 +22,41 @@ def parse_args():
     return parser.parse_args()
 
 
-def train_epoch(model, dataloader, criterion, optimizer, device):
+def train_epoch(model, dataloader, criterion, optimizer, device, max_grad_norm=1.0, log_interval=10):
     """
     Train for one epoch.
 
-    TODO: Implement training loop
+    Args:
+        model: Model to train
+        dataloader: Training data loader
+        criterion: Loss function
+        optimizer: Optimizer
+        device: Device to run on
+        max_grad_norm: Maximum gradient norm for clipping
+        log_interval: Log every N batches
+    
+    Returns:
+        Dictionary with training metrics
     """
-    model.train()
-    # TODO: Implement
-    pass
+    from src.fusion.training import train_epoch as _train_epoch
+    return _train_epoch(model, dataloader, criterion, optimizer, device, max_grad_norm, log_interval)
 
 
 def validate(model, dataloader, criterion, device):
     """
     Validate model.
 
-    TODO: Implement validation loop
+    Args:
+        model: Model to validate
+        dataloader: Validation data loader
+        criterion: Loss function
+        device: Device to run on
+    
+    Returns:
+        Dictionary with validation metrics
     """
-    model.eval()
-    # TODO: Implement
-    pass
+    from src.fusion.training import validate_epoch
+    return validate_epoch(model, dataloader, criterion, device)
 
 
 def main():

@@ -12,6 +12,9 @@ from src.fusion.explainer import (
     calculate_confidence,
     DistressExplainer
 )
+from src.fusion.loss import MultiTaskLoss, create_multitask_loss
+from src.fusion.training import train_epoch, validate_epoch
+from src.fusion.scheduler import AdaptiveLRScheduler, create_scheduler
 
 __all__ = [
     'pair_multimodal_samples',
@@ -24,5 +27,11 @@ __all__ = [
     'Alert',
     'visualize_attention_weights',
     'calculate_confidence',
-    'DistressExplainer'
+    'DistressExplainer',
+    'MultiTaskLoss',
+    'create_multitask_loss',
+    'train_epoch',
+    'validate_epoch',
+    'AdaptiveLRScheduler',
+    'create_scheduler'
 ]
