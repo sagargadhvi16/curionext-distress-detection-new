@@ -62,7 +62,9 @@ class TestAudioFeatures:
         mfcc = features.extract_mfcc(audio, sr)
 
         assert isinstance(mfcc, np.ndarray)
-        assert mfcc.shape == (39,)
+        assert mfcc.ndim == 2
+        assert mfcc.shape[0] == 39
+        assert mfcc.shape[1] > 1
 
     def test_extract_spectral_features(self):
         sr = 16000
@@ -72,40 +74,45 @@ class TestAudioFeatures:
         spectral = features.extract_spectral_features(audio, sr)
 
         assert isinstance(spectral, dict)
-        assert "mel_spectrogram" in spectral
-        assert "chroma" in spectral
-        assert "spectral_centroid" in spectral
-        assert "spectral_rolloff" in spectral
-        assert "spectral_contrast" in spectral
 
-        assert spectral["mel_spectrogram"].shape == (64,)
-        assert spectral["chroma"].shape == (12,)
+        assert spectral["mel_spectrogram"].ndim == 2
+        assert spectral["mel_spectrogram"].shape[0] == 64
+
+        assert spectral["chroma"].ndim == 2
+        assert spectral["chroma"].shape[0] == 12
+
+        assert spectral["spectral_centroid"].ndim == 2
+        assert spectral["spectral_rolloff"].ndim == 2
+        assert spectral["spectral_contrast"].ndim == 2
 
 class TestAudioCNNEncoder:
     """Tests for CNN-based audio encoder."""
 
     def test_audio_cnn_encoder_init(self):
         from src.audio.encoder import AudioCNNEncoder
-
-        encoder = AudioCNNEncoder(embedding_dim=128)
+        encoder = AudioCNNEncoder(out_channels=128)
         assert encoder is not None
 
     def test_audio_cnn_encoder_forward_shape(self):
         import torch
         from src.audio.encoder import AudioCNNEncoder
 
-        encoder = AudioCNNEncoder(embedding_dim=128)
+        encoder = AudioCNNEncoder(out_channels=128)
 
         x = torch.randn(4, 1, 64, 100)
         out = encoder(x)
 
-        assert out.shape == (4, 128)
+        # Expect temporal output
+        assert out.ndim == 3
+        assert out.shape[0] == 4          # B
+        assert out.shape[2] == 128        # C
+        assert out.shape[1] > 1           # T preserved
 
     def test_audio_cnn_encoder_variable_length(self):
         import torch
         from src.audio.encoder import AudioCNNEncoder
 
-        encoder = AudioCNNEncoder(embedding_dim=128)
+        encoder = AudioCNNEncoder(out_channels=128)
 
         x_short = torch.randn(2, 1, 64, 80)
         x_long = torch.randn(2, 1, 64, 200)
@@ -113,13 +120,14 @@ class TestAudioCNNEncoder:
         out1 = encoder(x_short)
         out2 = encoder(x_long)
 
-        assert out1.shape == out2.shape == (2, 128)
+        assert out1.shape[2] == out2.shape[2] == 128
+        assert out1.shape[1] != out2.shape[1]  # time varies
 
     def test_audio_cnn_encoder_gradients(self):
         import torch
         from src.audio.encoder import AudioCNNEncoder
 
-        encoder = AudioCNNEncoder(embedding_dim=128)
+        encoder = AudioCNNEncoder(out_channels=128)
 
         x = torch.randn(4, 1, 64, 100, requires_grad=True)
         out = encoder(x)
@@ -128,9 +136,37 @@ class TestAudioCNNEncoder:
         loss.backward()
 
         grads = [p.grad for p in encoder.parameters() if p.requires_grad]
-
         assert all(g is not None for g in grads)
-    
+
+class TestAudioEncoderIntegration:
+    """Tests for full AudioEncoder."""
+
+    def test_audio_encoder_output_shape(self):
+        import torch
+        from src.audio.encoder import AudioEncoder
+
+        encoder = AudioEncoder()
+
+        x = torch.randn(2, 1, 64, 120)
+        out = encoder(x)
+
+        assert out.shape == (2, 256)
+
+    def test_audio_encoder_gradients(self):
+        import torch
+        from src.audio.encoder import AudioEncoder
+
+        encoder = AudioEncoder()
+
+        x = torch.randn(2, 1, 64, 120, requires_grad=True)
+        out = encoder(x)
+
+        loss = out.mean()
+        loss.backward()
+
+        grads = [p.grad for p in encoder.parameters() if p.requires_grad]
+        assert all(g is not None for g in grads)
+
 @pytest.mark.skip(reason="YAMNet tests skipped due to heavy TF dependency")
 class TestYAMNetEncoder:
     """Test YAMNet encoder."""

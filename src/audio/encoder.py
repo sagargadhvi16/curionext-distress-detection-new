@@ -37,7 +37,7 @@ class YAMNetExtractor:
     def __init__(self):
         self.model = hub.load("https://tfhub.dev/google/yamnet/1")
 
-    def extract(self, audio: np.ndarray, sr: int = 16000,pool:bool=True) -> np.ndarray:
+    def extract(self, audio: np.ndarray, sr: int = 16000,pool:bool=False) -> np.ndarray:
         if audio.size == 0:
             raise ValueError("Cannot extract YAMNet embeddings from empty audio")
         if audio.ndim != 1:
@@ -70,13 +70,13 @@ class AudioCNNEncoder(nn.Module):
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d((2, 2)),
+            nn.MaxPool2d((2, 1)),
 
             # Block 2
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d((2, 2)),
+            nn.MaxPool2d((2, 1)),
 
             # Block 3
             nn.Conv2d(64, out_channels, kernel_size=3, padding=1),
