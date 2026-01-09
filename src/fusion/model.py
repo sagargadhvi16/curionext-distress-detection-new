@@ -124,6 +124,12 @@ class DistressDetectionModel(nn.Module):
         
         # Fusion
         self.use_attention_fusion = use_attention_fusion
+
+        # Ablation flags (default = full model)
+        self.use_audio = True
+        self.use_biometric = True
+        self.use_context = True
+
         if use_attention_fusion:
             self.fusion = AttentionFusion(
                 audio_dim=audio_dim,
@@ -177,6 +183,13 @@ class DistressDetectionModel(nn.Module):
         audio_emb = self.audio_encoder(audio_features)  # (B, audio_dim)
         bio_emb = self.biometric_encoder(biometric_features)  # (B, bio_dim)
         
+        # ---- ABLATION GATING ----
+        if not self.use_audio:
+            audio_emb = torch.zeros_like(audio_emb)
+
+        if not self.use_biometric:
+            bio_emb = torch.zeros_like(bio_emb)
+            
         # Encode context
         if context_features is not None:
             # If context_features is a tensor, pass through context encoder
@@ -192,7 +205,10 @@ class DistressDetectionModel(nn.Module):
             # Use default context encoding
             batch_size = audio_emb.shape[0]
             context_emb = torch.zeros(batch_size, 64, device=audio_emb.device)
-        
+
+            if not self.use_context:
+                context_emb = torch.zeros_like(context_emb)
+
         # Fuse modalities
         if self.use_attention_fusion:
             fused_emb, attention_weights = self.fusion(audio_emb, bio_emb, context_emb)
