@@ -49,8 +49,7 @@ class AdaptiveLRScheduler:
                 mode=kwargs.get('mode', 'min'),
                 factor=kwargs.get('factor', 0.5),
                 patience=kwargs.get('patience', 5),
-                min_lr=kwargs.get('min_lr', 1e-6),
-                verbose=True
+                min_lr=kwargs.get('min_lr', 1e-6)
             )
             self.is_metric_based = True
         elif self.scheduler_type == "cosine_annealing":

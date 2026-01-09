@@ -284,7 +284,7 @@ def pair_by_metadata(
             
             if best_bio_idx is not None:
                 used_audio_indices.add(audio_idx)
-                used_bio_indices.remove(best_bio_idx)
+                used_bio_indices.add(best_bio_idx)
                 bio_indices.remove(best_bio_idx)
                 
                 # Score based on label match and duration similarity
@@ -483,4 +483,94 @@ def load_samples_from_directories(
         biometric_samples.append(bio_sample)
     
     return audio_samples, biometric_samples
+
+
+def load_paired_data(
+    audio_dir: Path,
+    biometric_dir: Path,
+    pairing_method: str = 'index',
+    max_time_diff: Optional[float] = None
+) -> List[PairedSample]:
+    """
+    Load and pair audio and biometric data from directories.
+    
+    Args:
+        audio_dir: Directory containing audio files
+        biometric_dir: Directory containing biometric data
+        pairing_method: Method to use for pairing ('index', 'timestamp', or 'metadata')
+        max_time_diff: Maximum time difference for timestamp-based pairing (seconds)
+    
+    Returns:
+        List of paired samples
+    """
+    logger.info(f"Loading paired data from {audio_dir} and {biometric_dir}")
+    
+    # Load samples from directories
+    audio_samples, biometric_samples = load_samples_from_directories(
+        audio_dir=audio_dir,
+        biometric_dir=biometric_dir
+    )
+    
+    logger.info(f"Loaded {len(audio_samples)} audio samples and {len(biometric_samples)} biometric samples")
+    
+    # Pair the samples
+    paired_samples = pair_multimodal_samples(
+        audio_samples=audio_samples,
+        biometric_samples=biometric_samples,
+        pairing_method=pairing_method,
+        max_time_diff=max_time_diff
+    )
+    
+    logger.info(f"Created {len(paired_samples)} paired samples using method: {pairing_method}")
+    
+    return paired_samples
+
+
+def split_data(
+    paired_samples: List[PairedSample],
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+    test_ratio: float = 0.15,
+    random_seed: Optional[int] = 42
+) -> Tuple[List[PairedSample], List[PairedSample], List[PairedSample]]:
+    """
+    Split paired samples into train, validation, and test sets.
+    
+    Args:
+        paired_samples: List of paired samples to split
+        train_ratio: Proportion for training set (default: 0.7)
+        val_ratio: Proportion for validation set (default: 0.15)
+        test_ratio: Proportion for test set (default: 0.15)
+        random_seed: Random seed for reproducibility
+    
+    Returns:
+        Tuple of (train_samples, val_samples, test_samples)
+    """
+    import random
+    
+    # Validate ratios
+    total_ratio = train_ratio + val_ratio + test_ratio
+    if abs(total_ratio - 1.0) > 1e-6:
+        raise ValueError(f"Train/val/test ratios must sum to 1.0, got {total_ratio}")
+    
+    # Shuffle samples
+    samples = paired_samples.copy()
+    if random_seed is not None:
+        random.seed(random_seed)
+    random.shuffle(samples)
+    
+    # Calculate split indices
+    n_total = len(samples)
+    n_train = int(n_total * train_ratio)
+    n_val = int(n_total * val_ratio)
+    
+    # Split
+    train_samples = samples[:n_train]
+    val_samples = samples[n_train:n_train + n_val]
+    test_samples = samples[n_train + n_val:]
+    
+    logger.info(f"Split {n_total} samples into train={len(train_samples)}, "
+                f"val={len(val_samples)}, test={len(test_samples)}")
+    
+    return train_samples, val_samples, test_samples
 

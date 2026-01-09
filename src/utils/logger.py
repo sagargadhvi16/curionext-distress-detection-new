@@ -98,21 +98,23 @@ def setup_logger(
     
     # File handler with rotation (if log_file specified)
     if log_file:
-        # Determine log directory
-        if log_dir is None:
-            # Use project root/logs/
-            project_root = Path(__file__).parent.parent.parent
-            log_dir = project_root / "logs"
-        else:
-            log_dir = Path(log_dir)
-        
-        # Create log directory if it doesn't exist
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
         # Determine full log file path
         log_path = Path(log_file)
+        
+        # Only use log_dir if log_file is not absolute
         if not log_path.is_absolute():
+            # Determine log directory
+            if log_dir is None:
+                # Use project root/logs/
+                project_root = Path(__file__).parent.parent.parent
+                log_dir = project_root / "logs"
+            else:
+                log_dir = Path(log_dir)
+            
             log_path = log_dir / log_path
+        
+        # Create parent directory if it doesn't exist
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         
         # File handler with rotation
         file_handler = RotatingFileHandler(

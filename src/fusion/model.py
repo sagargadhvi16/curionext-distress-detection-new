@@ -7,9 +7,28 @@ from src.fusion.late_fusion import LateFusionLayer
 from src.fusion.attention_fusion import AttentionFusion
 from src.fusion.context_encoder import ContextEncoder
 from src.fusion.classifier import MultiTaskClassifier
-from src.audio.encoder import AudioEncoder
-from src.biometric.encoder import BiometricEncoder
-from src.audio.preprocessing import AudioPreprocessor
+
+# Optional imports - allow model to work without audio/biometric encoders
+try:
+    from src.audio.encoder import AudioEncoder
+    AUDIO_ENCODER_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    AudioEncoder = None
+    AUDIO_ENCODER_AVAILABLE = False
+
+try:
+    from src.biometric.encoder import BiometricEncoder
+    BIOMETRIC_ENCODER_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    BiometricEncoder = None
+    BIOMETRIC_ENCODER_AVAILABLE = False
+
+try:
+    from src.audio.preprocessing import AudioPreprocessor
+    AUDIO_PREPROCESSOR_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    AudioPreprocessor = None
+    AUDIO_PREPROCESSOR_AVAILABLE = False
 
 from src.utils.logger import get_logger
 
@@ -77,10 +96,25 @@ class DistressDetectionModel(nn.Module):
         else:
             # Default biometric encoder (will need biometric features, not raw data)
             # In practice, use BiometricEncoder from src.biometric.encoder
-            self.biometric_encoder = nn.Sequential(
-                nn.Linear(bio_dim, bio_dim),  # Placeholder
-                nn.ReLU()
-            )
+            # This is a flexible placeholder that handles variable input dimensions
+            class FlexibleBioEncoder(nn.Module):
+                def __init__(self, output_dim=256):
+                    super().__init__()
+                    self.output_dim = output_dim
+                    self.fc = None
+                    
+                def forward(self, x):
+                    # Flatten if needed
+                    if x.dim() > 2:
+                        x = x.flatten(1)
+                    
+                    # Initialize linear layer on first pass if needed
+                    if self.fc is None:
+                        self.fc = nn.Linear(x.shape[1], self.output_dim).to(x.device)
+                    
+                    return self.fc(x)
+            
+            self.biometric_encoder = FlexibleBioEncoder(output_dim=bio_dim)
             logger.warning("Using placeholder biometric encoder. Provide proper BiometricEncoder for production.")
         
         if context_encoder is not None:

@@ -22,7 +22,7 @@ def test_pairing_with_synthetic_data():
     logger.info("Testing multimodal sample pairing...")
     
     # Define directories
-    audio_dir = project_root / "data/synthetic/audio"
+    audio_dir = project_root / "data/synthetic/audio/distress"
     hrv_dir = project_root / "data/synthetic/biometric/hrv"
     accel_dir = project_root / "data/synthetic/biometric/accelerometer"
     
