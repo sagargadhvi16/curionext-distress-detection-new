@@ -92,3 +92,65 @@ class AttentionFusion(nn.Module):
         
         return output, attention_weights
 
+    def fuse_audio_tail(
+        self,
+        audio_tail_emb: torch.Tensor,
+        context_emb: torch.Tensor,
+        bio_emb_last: torch.Tensor | None = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Fuse an audio-only tail segment when biometric data is shorter.
+
+        This handles cases where audio duration exceeds biometric duration
+        (e.g., audio=60s, biometric=30s). The remaining audio tail can still
+        contain distress information. We construct a synthetic biometric input
+        using the last available biometric embedding (if provided) or zeros,
+        and perform attention-based fusion to produce a tail response.
+
+        Args:
+            audio_tail_emb: Tail audio embeddings (batch_size, audio_dim)
+            context_emb: Context embeddings (batch_size, context_dim)
+            bio_emb_last: Optional last available biometric embedding
+                          (batch_size, bio_dim). If None, uses zeros.
+
+        Returns:
+            Tuple of (fused_tail_embeddings, attention_weights)
+            - fused_tail_embeddings: (batch_size, hidden_dim)
+            - attention_weights: (batch_size, 3) - weights for [audio, bio, context]
+
+        Notes:
+            - This function is additive and does not alter existing code paths.
+            - Callers can process the returned fused tail embedding like other
+              segments to ensure the tail is not missed.
+        """
+        batch_size = audio_tail_emb.shape[0]
+
+        # Project modalities to common dimension
+        audio_proj = self.audio_proj(audio_tail_emb)  # (B, hidden_dim)
+
+        if bio_emb_last is not None:
+            # Use the last available biometric embedding for continuity
+            bio_proj = self.bio_proj(bio_emb_last)
+        else:
+            # If no biometric is available for the tail, use zeros
+            bio_proj = torch.zeros(batch_size, audio_proj.shape[-1], device=audio_tail_emb.device, dtype=audio_tail_emb.dtype)
+
+        context_proj = self.context_proj(context_emb)  # (B, hidden_dim)
+
+        # Concatenate for attention computation
+        combined = torch.cat([audio_proj, bio_proj, context_proj], dim=-1)  # (B, hidden_dim * 3)
+
+        # Compute attention weights
+        attention_weights = self.attention(combined)  # (B, 3)
+
+        # Apply attention weights
+        weighted_audio = audio_proj * attention_weights[:, 0:1]
+        weighted_bio = bio_proj * attention_weights[:, 1:2]
+        weighted_context = context_proj * attention_weights[:, 2:3]
+
+        # Concatenate weighted embeddings and project to output
+        fused = torch.cat([weighted_audio, weighted_bio, weighted_context], dim=-1)  # (B, hidden_dim * 3)
+        output = self.output_proj(fused)  # (B, hidden_dim)
+
+        return output, attention_weights
+

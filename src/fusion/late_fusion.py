@@ -82,6 +82,49 @@ class LateFusionLayer(nn.Module):
         
         return output
 
+    def fuse_audio_tail(
+        self,
+        audio_tail_emb: torch.Tensor,
+        context_emb: torch.Tensor,
+        bio_emb_last: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Fuse an audio-only tail segment when biometric data is shorter.
+
+        This handles cases where audio duration exceeds biometric duration
+        (e.g., audio=60s, biometric=30s). The remaining audio tail can still
+        contain distress information. We use the last available biometric
+        embedding (if provided) or zeros, and perform fusion to produce
+        a tail response.
+
+        Args:
+            audio_tail_emb: Tail audio embeddings (batch_size, audio_dim)
+            context_emb: Context embeddings (batch_size, context_dim)
+            bio_emb_last: Optional last available biometric embedding
+                          (batch_size, bio_dim). If None, uses zeros.
+
+        Returns:
+            Fused tail embeddings (batch_size, fusion_output_dim)
+
+        Notes:
+            - This function is additive and does not alter existing code paths.
+            - Callers can process the returned fused tail embedding to ensure
+              the audio tail is not missed.
+        """
+        batch_size = audio_tail_emb.shape[0]
+
+        if bio_emb_last is not None:
+            # Use the last available biometric embedding for continuity
+            bio_emb = bio_emb_last
+        else:
+            # If no biometric is available for the tail, use zeros
+            # Infer bio_dim from the fusion layers
+            bio_dim = 256  # Default bio_dim
+            bio_emb = torch.zeros(batch_size, bio_dim, device=audio_tail_emb.device, dtype=audio_tail_emb.dtype)
+
+        # Use the standard forward pass with the tail audio and bio embedding
+        return self.forward(audio_tail_emb, bio_emb, context_emb)
+
 
 # Keep old class name for backward compatibility
 LateFusionModel = LateFusionLayer

@@ -254,4 +254,129 @@ class DistressDetectionModel(nn.Module):
             outputs['type_pred'] = torch.argmax(outputs['type_logits'], dim=-1)
             
             return outputs
+    
+    def forward_with_duration_mismatch(
+        self,
+        audio_features: torch.Tensor,
+        biometric_features: torch.Tensor,
+        context_features: Optional[torch.Tensor] = None,
+        audio_duration: Optional[float] = None,
+        bio_duration: Optional[float] = None,
+        return_attention: bool = False
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Forward pass handling cases where audio and biometric have different durations.
+        
+        When audio duration > biometric duration (e.g., audio=60s, bio=30s):
+        1. Process the aligned portion (first 30s of both)
+        2. Process the remaining audio tail (last 30s audio-only)
+        3. Aggregate results from both segments
+        
+        Args:
+            audio_features: Audio features (batch_size, audio_feature_dim) or (batch_size, 2, audio_feature_dim)
+                           Can be a single tensor or stacked [aligned, tail]
+            biometric_features: Biometric features (batch_size, bio_feature_dim)
+            context_features: Context features (batch_size, context_feature_dim) or None
+            audio_duration: Total audio duration in seconds (optional, for logging)
+            bio_duration: Total biometric duration in seconds (optional, for logging)
+            return_attention: Whether to return attention weights (only if using attention fusion)
+            
+        Returns:
+            Dictionary with aggregated predictions from both aligned and tail segments
+        """
+        # Check if audio_features has a tail segment dimension
+        if audio_features.dim() == 3 and audio_features.shape[1] == 2:
+            # Stacked format: [aligned, tail]
+            audio_aligned = audio_features[:, 0, :]
+            audio_tail = audio_features[:, 1, :]
+            has_tail = True
+        else:
+            # Single segment (no tail)
+            audio_aligned = audio_features
+            has_tail = False
+        
+        # 1. Process aligned portion (audio + biometric)
+        audio_emb_aligned = self.audio_encoder(audio_aligned)
+        bio_emb = self.biometric_encoder(biometric_features)
+        
+        # Apply ablation gating
+        if not self.use_audio:
+            audio_emb_aligned = torch.zeros_like(audio_emb_aligned)
+        if not self.use_biometric:
+            bio_emb = torch.zeros_like(bio_emb)
+        
+        # Encode context
+        if context_features is not None:
+            if context_features.dim() == 1:
+                context_features = context_features.unsqueeze(0)
+            if context_features.shape[-1] != 64:
+                context_emb = nn.Linear(context_features.shape[-1], 64).to(context_features.device)(context_features)
+            else:
+                context_emb = context_features
+        else:
+            batch_size = audio_emb_aligned.shape[0]
+            context_emb = torch.zeros(batch_size, 64, device=audio_emb_aligned.device)
+            if not self.use_context:
+                context_emb = torch.zeros_like(context_emb)
+        
+        # Fuse aligned portion
+        if self.use_attention_fusion:
+            fused_aligned, attention_weights_aligned = self.fusion(audio_emb_aligned, bio_emb, context_emb)
+        else:
+            fused_aligned = self.fusion(audio_emb_aligned, bio_emb, context_emb)
+        
+        # Get predictions for aligned portion
+        outputs_aligned = self.classifier(fused_aligned)
+        
+        # 2. Process audio tail if present
+        if has_tail:
+            audio_emb_tail = self.audio_encoder(audio_tail)
+            
+            if not self.use_audio:
+                audio_emb_tail = torch.zeros_like(audio_emb_tail)
+            
+            # Fuse tail with last biometric embedding
+            if self.use_attention_fusion:
+                fused_tail, attention_weights_tail = self.fusion.fuse_audio_tail(
+                    audio_emb_tail, context_emb, bio_emb
+                )
+            else:
+                fused_tail = self.fusion.fuse_audio_tail(
+                    audio_emb_tail, context_emb, bio_emb
+                )
+            
+            # Get predictions for tail
+            outputs_tail = self.classifier(fused_tail)
+            
+            # 3. Aggregate results (average or max)
+            # For distress detection, we use max probability to be conservative
+            outputs = {
+                'distress_logits': torch.max(
+                    torch.stack([outputs_aligned['distress_logits'], outputs_tail['distress_logits']]),
+                    dim=0
+                )[0],
+                'severity': torch.max(
+                    torch.stack([outputs_aligned['severity'], outputs_tail['severity']]),
+                    dim=0
+                )[0],
+                'type_logits': torch.max(
+                    torch.stack([outputs_aligned['type_logits'], outputs_tail['type_logits']]),
+                    dim=0
+                )[0],
+            }
+            
+            # Store individual segment outputs for analysis
+            outputs['aligned_outputs'] = outputs_aligned
+            outputs['tail_outputs'] = outputs_tail
+            
+            if return_attention and self.use_attention_fusion:
+                outputs['attention_weights_aligned'] = attention_weights_aligned
+                outputs['attention_weights_tail'] = attention_weights_tail
+        else:
+            # No tail, just return aligned outputs
+            outputs = outputs_aligned
+            if return_attention and self.use_attention_fusion:
+                outputs['attention_weights'] = attention_weights_aligned
+        
+        return outputs
 
