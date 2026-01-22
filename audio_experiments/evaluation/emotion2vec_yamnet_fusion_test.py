@@ -15,7 +15,6 @@ EPOCHS = 5
 LR = 1e-3
 CHUNK_SEC = 6
 
-# emotion labels
 LABELS = {
     "cry": 0,
     "fear": 1,
@@ -24,19 +23,20 @@ LABELS = {
 }
 
 # =====================
-# DATA (example paths)
+# DATA (COLAB PATHS)
 # =====================
 TRAIN_FILES = [
-    ("audio_experiments/input/cry/cry_long.wav", 0),
-    ("audio_experiments/input/fear/fear_long.wav", 1),
-    ("audio_experiments/input/verbal_aggression/verbal_long.wav", 2),
-    ("audio_experiments/input/background_noise/esc50/esc_long.wav", 3),
+    ("/content/cry_medium.wav", 0),
+    ("/content/fear_medium.wav", 1),
+    ("/content/verbal_medium.wav", 2),
+    ("/content/esc_medium.wav", 3),
 ]
 
 TEST_FILES = [
-    ("audio_experiments/input/cry/cry_medium.wav", 0),
-    ("audio_experiments/input/fear/fear_medium.wav", 1),
-    ("audio_experiments/input/background_noise/esc50/esc_medium.wav", 3),
+    ("/content/cry_short.wav", 0),
+    ("/content/fear_short.wav", 1),
+    ("/content/verbal_short.wav", 2),
+    ("/content/esc_short.wav", 3),
 ]
 
 # =====================
@@ -44,6 +44,8 @@ TEST_FILES = [
 # =====================
 def chunk_audio(audio, sr, chunk_sec):
     chunk_len = sr * chunk_sec
+    if len(audio) <= chunk_len:
+        return [audio]
     return [
         audio[i:i + chunk_len]
         for i in range(0, len(audio) - chunk_len, chunk_len)
@@ -62,7 +64,6 @@ emo_model = AutoModel(
 print("Loading YAMNet...")
 yamnet = hub.load("https://tfhub.dev/google/yamnet/1")
 
-# projections
 emo_proj = nn.Linear(768, 256).to(DEVICE)
 yam_proj = nn.Linear(1024, 256).to(DEVICE)
 
@@ -71,16 +72,20 @@ yam_proj = nn.Linear(1024, 256).to(DEVICE)
 # =====================
 def emotion2vec_embedding(audio):
     """
-    Returns pooled 768-d embedding
+    Returns [1, 768]
     """
     out = emo_model.generate(audio, sr=SR)
-    emb = torch.tensor(out[0]["feats"]).mean(dim=0)
-    return emb.unsqueeze(0)
+    emb = np.mean(out[0]["feats"], axis=0)   # (768,)
+    emb = torch.from_numpy(emb).float().unsqueeze(0)
+    return emb
 
 def yamnet_embedding(audio):
-    audio_tf = tf.convert_to_tensor(audio, dtype=tf.float32)
+    audio = audio.astype(np.float32)
+    audio_tf = tf.convert_to_tensor(audio)
     _, emb, _ = yamnet(audio_tf)
-    return torch.tensor(emb.numpy()).mean(dim=0).unsqueeze(0)
+    emb = emb.numpy().mean(axis=0)            # (1024,)
+    emb = torch.from_numpy(emb).float().unsqueeze(0)
+    return emb
 
 def extract_fused_embedding(audio):
     chunks = chunk_audio(audio, SR, CHUNK_SEC)
@@ -118,7 +123,7 @@ def run():
 
     print("\n===== TRAIN =====")
     for epoch in range(EPOCHS):
-        total_loss = 0
+        total_loss = 0.0
         for path, label in TRAIN_FILES:
             audio, _ = librosa.load(path, sr=SR)
             feat = extract_fused_embedding(audio)
