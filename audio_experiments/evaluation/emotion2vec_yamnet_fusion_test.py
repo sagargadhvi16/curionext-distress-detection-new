@@ -56,8 +56,8 @@ def chunk_audio(audio, sr, chunk_sec):
 # =====================
 print("Loading emotion2vec (FunASR)...")
 emo_model = AutoModel(
-    model="emotion2vec_base",
-    model_revision="v1.0.0",
+    model="iic/emotion2vec_base",
+    trust_remote_code=True,
     device=DEVICE,
 )
 
