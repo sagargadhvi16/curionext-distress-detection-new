@@ -1,6 +1,8 @@
 """
-Training script for audio-only distress detection (with validation).
+Train audio-only distress classifier using precomputed MFCC features.
+This is the FINAL MFCC-based training script.
 """
+
 import os
 import argparse
 import numpy as np
@@ -8,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
+from collections import Counter
 
 from src.audio.dataset import AudioDistressDataset
 from src.audio.encoder import AudioEncoder
@@ -15,32 +18,29 @@ from src.audio.classifier import AudioDistressClassifier
 
 
 # -------------------------------------------------
-# Padding collate function
+# Padding collate fn (for variable-length MFCCs)
 # -------------------------------------------------
 def pad_collate_fn(batch):
-    """
-    Pads variable-length audio features along time dimension.
-    """
     features, labels = zip(*batch)
 
-    max_len = max(f.shape[-1] for f in features)
+    max_len = max(x.shape[-1] for x in features)
 
     padded = []
-    for f in features:
-        pad_amt = max_len - f.shape[-1]
-        padded.append(F.pad(f, (0, pad_amt)))
+    for x in features:
+        pad_amt = max_len - x.shape[-1]
+        padded.append(F.pad(x, (0, pad_amt)))
 
-    features = torch.stack(padded)     # (B, 1, F, T)
-    labels = torch.stack(labels)       # (B,)
+    features = torch.stack(padded)   # (B, 1, 39, T)
+    labels = torch.stack(labels)     # (B,)
 
     return features, labels
 
 
 # -------------------------------------------------
-# Argument parsing
+# Args
 # -------------------------------------------------
 def parse_args():
-    parser = argparse.ArgumentParser("Audio Distress Training")
+    parser = argparse.ArgumentParser("MFCC Audio Distress Training")
     parser.add_argument("--data-root", type=str, default="data/raw/audio")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=16)
@@ -50,7 +50,7 @@ def parse_args():
 
 
 # -------------------------------------------------
-# Training epoch
+# Train epoch
 # -------------------------------------------------
 def train_epoch(encoder, classifier, loader, criterion, optimizer, device):
     encoder.train()
@@ -104,10 +104,10 @@ def validate_epoch(encoder, classifier, loader, criterion, device):
     preds = torch.cat(preds)
     targets = torch.cat(targets)
 
-    accuracy = (preds == targets).float().mean().item()
+    acc = (preds == targets).float().mean().item()
     recall = (preds * targets).sum() / (targets.sum() + 1e-6)
 
-    return total_loss / len(loader), accuracy, recall.item()
+    return total_loss / len(loader), acc, recall.item()
 
 
 # -------------------------------------------------
@@ -118,7 +118,7 @@ def main():
     device = torch.device(args.device)
 
     print("=" * 60)
-    print("CurioNext | Audio Distress Training")
+    print("CurioNext | MFCC Audio Distress Training")
     print("=" * 60)
     print(f"Device     : {device}")
     print(f"Epochs     : {args.epochs}")
@@ -126,21 +126,24 @@ def main():
     print(f"LR         : {args.lr}")
     print("=" * 60)
 
+    # Dataset
     dataset = AudioDistressDataset(args.data_root)
 
     labels = np.array([dataset[i][1].item() for i in range(len(dataset))])
+    print("Label distribution:", Counter(labels))
 
-    idx_distress = np.where(labels == 1)[0]
-    idx_non = np.where(labels == 0)[0]
+    # Stratified 80/20 split
+    idx_pos = np.where(labels == 1)[0]
+    idx_neg = np.where(labels == 0)[0]
 
-    np.random.shuffle(idx_distress)
-    np.random.shuffle(idx_non)
+    np.random.shuffle(idx_pos)
+    np.random.shuffle(idx_neg)
 
-    split_d = int(0.8 * len(idx_distress))
-    split_n = int(0.8 * len(idx_non))
+    split_p = int(0.8 * len(idx_pos))
+    split_n = int(0.8 * len(idx_neg))
 
-    train_idx = np.concatenate([idx_distress[:split_d], idx_non[:split_n]])
-    val_idx   = np.concatenate([idx_distress[split_d:], idx_non[split_n:]])
+    train_idx = np.concatenate([idx_pos[:split_p], idx_neg[:split_n]])
+    val_idx   = np.concatenate([idx_pos[split_p:], idx_neg[split_n:]])
 
     train_loader = DataLoader(
         Subset(dataset, train_idx),
@@ -156,6 +159,7 @@ def main():
         collate_fn=pad_collate_fn,
     )
 
+    # Models
     encoder = AudioEncoder().to(device)
     classifier = AudioDistressClassifier().to(device)
 
@@ -165,6 +169,7 @@ def main():
         lr=args.lr,
     )
 
+    # Training loop
     for epoch in range(1, args.epochs + 1):
         train_loss = train_epoch(
             encoder, classifier, train_loader,
@@ -184,21 +189,18 @@ def main():
             f"Val Recall: {val_recall:.4f}"
         )
 
-    print("\n✅ Audio-only distress training complete")
-
-
+    # Save checkpoint
     os.makedirs("checkpoints", exist_ok=True)
-
     torch.save(
-    {
-        "encoder": encoder.state_dict(),
-        "classifier": classifier.state_dict(),
-    },
-    "checkpoints/audio_distress_model.pt",
-)
+        {
+            "encoder": encoder.state_dict(),
+            "classifier": classifier.state_dict(),
+        },
+        "checkpoints/audio_mfcc_model.pt",
+    )
 
-
-    print("💾 Audio distress model saved to checkpoints/audio_distress_model.pt")
+    print("\n💾 Model saved to checkpoints/audio_mfcc_model.pt")
+    print("✅ MFCC-based audio training complete")
 
 
 if __name__ == "__main__":
