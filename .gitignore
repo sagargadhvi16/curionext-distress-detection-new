@@ -50,3 +50,24 @@ credentials.json
 logs/
 wandb/
 tensorboard/
+<<<<<<< HEAD
+=======
+
+#experimental
+# virtual envs
+venv/
+venv_emotion2vec/
+
+# large / generated data
+audio_experiments/input/
+audio_experiments/embeddings/
+*.wav
+*.npz
+*.npy
+
+# experiments / temp
+emotion2vec/
+emotion2vec.zip
+
+# audio data (local only)
+data/CurioNext_Audio/
