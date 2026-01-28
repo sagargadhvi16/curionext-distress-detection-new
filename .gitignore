@@ -50,8 +50,7 @@ credentials.json
 logs/
 wandb/
 tensorboard/
-<<<<<<< HEAD
-=======
+
 
 #experimental
 # virtual envs
