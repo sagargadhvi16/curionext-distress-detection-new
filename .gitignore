@@ -67,3 +67,5 @@ audio_experiments/embeddings/
 # experiments / temp
 emotion2vec/
 emotion2vec.zip
+
+data/CurioNext_Audio/
