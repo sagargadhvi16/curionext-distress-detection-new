@@ -20,6 +20,7 @@ import numpy as np
 from src.utils.config import load_config
 from src.utils.logger import get_logger, setup_logger
 from src.fusion.model import DistressDetectionModel
+from scripts.fusion_integration import integrate_fusion
 from src.fusion.loss import MultiTaskLoss
 from src.fusion.training import train_epoch, validate_epoch
 from src.fusion.early_stopping import EarlyStopping
@@ -542,7 +543,7 @@ def main():
     # Create dataloaders
     train_loader, val_loader, test_loader = create_dataloaders(config, args.data_dir)
     
-    # Training loop
+    # Training loop\n    # Integrate fusion into the training process\n    audio_data, bio_data = load_data()  # Assuming a function to load data\n    fused_audio, random_curves = integrate_fusion(audio_data)\n    # Use fused_audio in the training process
     model, history = training_loop(
         model,
         train_loader,

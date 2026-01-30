@@ -37,7 +37,7 @@ def test_fusion_layers():
     bio_emb = torch.randn(batch_size, bio_dim)
     context_emb = torch.randn(batch_size, context_dim)
     
-    # Test Late Fusion
+    # Test Late Fusion\n    # Integrate fusion into the testing process\n    audio_data = torch.randn(batch_size, audio_dim)  # Example audio data\n    fused_audio, random_curves = integrate_fusion(audio_data)\n    # Use fused_audio in the testing process\n    print(f"Fused Audio Shape: {fused_audio.shape}")
     print("\n1. Testing Late Fusion Layer...")
     late_fusion = LateFusionLayer(
         audio_dim=audio_dim,

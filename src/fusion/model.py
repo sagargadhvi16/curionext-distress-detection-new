@@ -5,6 +5,7 @@ from typing import Dict, Optional, Tuple
 
 from src.fusion.late_fusion import LateFusionLayer
 from src.fusion.attention_fusion import AttentionFusion
+from src.fusion.transformer_fusion import TransformerFusion
 from src.fusion.context_encoder import ContextEncoder
 from src.fusion.classifier import MultiTaskClassifier
 
@@ -24,6 +25,13 @@ except (ImportError, ModuleNotFoundError):
     BIOMETRIC_ENCODER_AVAILABLE = False
 
 try:
+    from src.audio.tcn_refiner import TCNAudioRefiner
+    TCN_REFINER_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    TCNAudioRefiner = None
+    TCN_REFINER_AVAILABLE = False
+
+try:
     from src.audio.preprocessing import AudioPreprocessor
     AUDIO_PREPROCESSOR_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
@@ -37,13 +45,13 @@ logger = get_logger(__name__)
 
 class DistressDetectionModel(nn.Module):
     """
-    Complete end-to-end distress detection model.
+    Complete end-to-end distress detection model with WER-SSL fusion approach.
     
     Architecture:
-    1. Audio Encoder (256-dim)
+    1. Audio Encoder (256-dim) → Optional TCN Refiner
     2. Biometric Encoder (256-dim)
     3. Context Encoder (64-dim)
-    4. Late Fusion (concatenation) or Attention Fusion
+    4. Transformer-based Fusion (attention) OR Late Fusion (concatenation)
     5. Multi-task Classifier (3 heads: binary, severity, type)
     """
     
@@ -52,52 +60,59 @@ class DistressDetectionModel(nn.Module):
         audio_encoder: Optional[nn.Module] = None,
         biometric_encoder: Optional[nn.Module] = None,
         context_encoder: Optional[nn.Module] = None,
-        use_attention_fusion: bool = False,
+        fusion_type: str = "transformer",  # "transformer", "attention", or "late"
+        use_tcn_refiner: bool = False,
         audio_dim: int = 256,
         bio_dim: int = 256,
         context_dim: int = 64,
+        # Transformer-specific parameters
+        transformer_d_model: int = 128,
+        transformer_nhead: int = 4,
+        transformer_num_layers: int = 2,
+        transformer_dim_feedforward: int = 512,
+        transformer_dropout: float = 0.2,
+        # Late fusion parameters
         fusion_hidden_dims: list = [512, 256],
         classifier_hidden_dim: int = 128,
         dropout: float = 0.4,
         num_distress_types: int = 5
     ):
         """
-        Initialize distress detection model.
+        Initialize distress detection model with WER-SSL fusion approach.
         
         Args:
             audio_encoder: Pre-initialized audio encoder (or None to create default)
             biometric_encoder: Pre-initialized biometric encoder (or None to create default)
             context_encoder: Pre-initialized context encoder (or None to create default)
-            use_attention_fusion: Whether to use attention fusion instead of simple concatenation
+            fusion_type: Type of fusion ("transformer" for WER-SSL approach, "attention", or "late")
+            use_tcn_refiner: Whether to use TCN refiner for audio features
             audio_dim: Audio embedding dimension
             bio_dim: Biometric embedding dimension
             context_dim: Context embedding dimension
-            fusion_hidden_dims: Hidden layer dimensions for fusion
+            transformer_d_model: Transformer model dimension
+            transformer_nhead: Number of attention heads in transformer
+            transformer_num_layers: Number of transformer encoder layers
+            transformer_dim_feedforward: Feedforward dimension in transformer
+            transformer_dropout: Dropout probability in transformer
+            fusion_hidden_dims: Hidden layer dimensions for late fusion (if used)
             classifier_hidden_dim: Hidden dimension for classifier
             dropout: Dropout probability
             num_distress_types: Number of distress type classes
         """
         super().__init__()
         
+        # Store fusion type
+        self.fusion_type = fusion_type.lower()
+        self.use_tcn_refiner = use_tcn_refiner
+        self.audio_dim = audio_dim
+        self.bio_dim = bio_dim
+        
         # Encoders
         if audio_encoder is not None:
             self.audio_encoder = audio_encoder
         else:
-            # Default audio encoder (will need audio features, not raw audio)
-            # For now, create a placeholder - in practice, use AudioEncoder from src.audio.encoder
-            self.audio_encoder = nn.Sequential(
-                nn.Linear(audio_dim, audio_dim),  # Placeholder
-                nn.ReLU()
-            )
-            logger.warning("Using placeholder audio encoder. Provide proper AudioEncoder for production.")
-        
-        if biometric_encoder is not None:
-            self.biometric_encoder = biometric_encoder
-        else:
-            # Default biometric encoder (will need biometric features, not raw data)
-            # In practice, use BiometricEncoder from src.biometric.encoder
-            # This is a flexible placeholder that handles variable input dimensions
-            class FlexibleBioEncoder(nn.Module):
+            # Create flexible placeholder audio encoder
+            class FlexibleAudioEncoder(nn.Module):
                 def __init__(self, output_dim=256):
                     super().__init__()
                     self.output_dim = output_dim
@@ -108,7 +123,28 @@ class DistressDetectionModel(nn.Module):
                     if x.dim() > 2:
                         x = x.flatten(1)
                     
-                    # Initialize linear layer on first pass if needed
+                    # Create linear layer on first forward pass
+                    if self.fc is None:
+                        self.fc = nn.Linear(x.shape[1], self.output_dim).to(x.device)
+                    
+                    return self.fc(x)
+            
+            self.audio_encoder = FlexibleAudioEncoder(output_dim=audio_dim)
+            logger.warning("Using placeholder audio encoder. Provide proper AudioEncoder for production.")
+        
+        if biometric_encoder is not None:
+            self.biometric_encoder = biometric_encoder
+        else:
+            class FlexibleBioEncoder(nn.Module):
+                def __init__(self, output_dim=256):
+                    super().__init__()
+                    self.output_dim = output_dim
+                    self.fc = None
+                    
+                def forward(self, x):
+                    if x.dim() > 2:
+                        x = x.flatten(1)
+                    
                     if self.fc is None:
                         self.fc = nn.Linear(x.shape[1], self.output_dim).to(x.device)
                     
@@ -122,15 +158,44 @@ class DistressDetectionModel(nn.Module):
         else:
             self.context_encoder = ContextEncoder(embedding_dim=context_dim)
         
-        # Fusion
-        self.use_attention_fusion = use_attention_fusion
-
-        # Ablation flags (default = full model)
+        # Optional TCN refiner for audio
+        if use_tcn_refiner and TCN_REFINER_AVAILABLE:
+            self.tcn_refiner = TCNAudioRefiner(
+                input_dim=audio_dim,
+                tcn_channels=[256, 256, 128],
+                kernel_size=5,
+                dropout=dropout,
+                output_dim=audio_dim,
+                use_temporal_pooling=True
+            )
+            logger.info("TCN audio refiner enabled")
+        else:
+            self.tcn_refiner = None
+        
+        # Ablation flags
         self.use_audio = True
         self.use_biometric = True
         self.use_context = True
 
-        if use_attention_fusion:
+        # Fusion layer (WER-SSL approach uses Transformer)
+        if self.fusion_type == "transformer":
+            self.fusion = TransformerFusion(
+                audio_dim=audio_dim,
+                bio_dim=bio_dim,
+                context_dim=context_dim,
+                d_model=transformer_d_model,
+                nhead=transformer_nhead,
+                num_encoder_layers=transformer_num_layers,
+                dim_feedforward=transformer_dim_feedforward,
+                dropout=transformer_dropout,
+                output_dim=audio_dim,  # Output same as input for consistency
+                use_batch_norm=True,
+                positional_encoding="fixed"
+            )
+            fusion_output_dim = audio_dim
+            logger.info("Using Transformer-based fusion (WER-SSL approach)")
+            
+        elif self.fusion_type == "attention":
             self.fusion = AttentionFusion(
                 audio_dim=audio_dim,
                 bio_dim=bio_dim,
@@ -138,7 +203,9 @@ class DistressDetectionModel(nn.Module):
                 hidden_dim=fusion_hidden_dims[-1] if fusion_hidden_dims else 256
             )
             fusion_output_dim = fusion_hidden_dims[-1] if fusion_hidden_dims else 256
-        else:
+            logger.info("Using Attention-based fusion")
+            
+        else:  # late fusion (default)
             self.fusion = LateFusionLayer(
                 audio_dim=audio_dim,
                 bio_dim=bio_dim,
@@ -147,6 +214,7 @@ class DistressDetectionModel(nn.Module):
                 dropout=dropout
             )
             fusion_output_dim = self.fusion.output_dim
+            logger.info("Using Late fusion (concatenation)")
         
         # Classifier
         self.classifier = MultiTaskClassifier(
@@ -164,23 +232,29 @@ class DistressDetectionModel(nn.Module):
         return_attention: bool = False
     ) -> Dict[str, torch.Tensor]:
         """
-        Forward pass through the complete model.
+        Forward pass through the complete model with WER-SSL fusion approach.
         
         Args:
             audio_features: Audio features (batch_size, audio_feature_dim) or raw audio (batch_size, seq_len)
             biometric_features: Biometric features (batch_size, bio_feature_dim) or raw biometric (batch_size, seq_len, feature_dim)
             context_features: Context features (batch_size, context_feature_dim) or None
-            return_attention: Whether to return attention weights (only if using attention fusion)
+            return_attention: Whether to return attention weights (only if using transformer fusion)
             
         Returns:
             Dictionary with keys:
             - distress_logits: (batch_size, 2) - binary classification logits
             - severity: (batch_size, 1) - severity score (0-10)
             - type_logits: (batch_size, num_distress_types) - distress type logits
-            - attention_weights: (batch_size, 3) - optional, only if return_attention=True and use_attention_fusion=True
+            - attention_weights: (batch_size, seq_len, seq_len) - optional, only if return_attention=True and fusion_type="transformer"
         """
-        # Encode modalities
+        # Encode audio
         audio_emb = self.audio_encoder(audio_features)  # (B, audio_dim)
+        
+        # Apply TCN refiner if enabled
+        if self.tcn_refiner is not None:
+            audio_emb = self.tcn_refiner(audio_emb)  # (B, audio_dim)
+        
+        # Encode biometric
         bio_emb = self.biometric_encoder(biometric_features)  # (B, bio_dim)
         
         # ---- ABLATION GATING ----
@@ -192,17 +266,13 @@ class DistressDetectionModel(nn.Module):
             
         # Encode context
         if context_features is not None:
-            # If context_features is a tensor, pass through context encoder
-            # For now, assume it's already encoded or use simple projection
             if context_features.dim() == 1:
                 context_features = context_features.unsqueeze(0)
             if context_features.shape[-1] != 64:
-                # Simple projection to context_dim
                 context_emb = nn.Linear(context_features.shape[-1], 64).to(context_features.device)(context_features)
             else:
                 context_emb = context_features
         else:
-            # Use default context encoding
             batch_size = audio_emb.shape[0]
             context_emb = torch.zeros(batch_size, 64, device=audio_emb.device)
 
@@ -210,15 +280,33 @@ class DistressDetectionModel(nn.Module):
                 context_emb = torch.zeros_like(context_emb)
 
         # Fuse modalities
-        if self.use_attention_fusion:
-            fused_emb, attention_weights = self.fusion(audio_emb, bio_emb, context_emb)
+        if self.fusion_type == "transformer":
+            # Transformer fusion (WER-SSL approach)
+            fused_emb = self.fusion(audio_emb, bio_emb, context_emb)
+            results = self.classifier(fused_emb)
+            
             if return_attention:
-                results = self.classifier(fused_emb)
+                # Get attention weights from transformer
+                try:
+                    attention_weights = self.fusion.get_attention_weights(audio_emb, bio_emb, context_emb)
+                    results['attention_weights'] = attention_weights
+                except:
+                    logger.warning("Could not extract attention weights from transformer")
+            
+            return results
+            
+        elif self.fusion_type == "attention":
+            # Attention-based fusion
+            fused_emb, attention_weights = self.fusion(audio_emb, bio_emb, context_emb)
+            results = self.classifier(fused_emb)
+            
+            if return_attention:
                 results['attention_weights'] = attention_weights
-                return results
-            else:
-                return self.classifier(fused_emb)
+            
+            return results
+            
         else:
+            # Late fusion (concatenation)
             fused_emb = self.fusion(audio_emb, bio_emb, context_emb)
             return self.classifier(fused_emb)
     
