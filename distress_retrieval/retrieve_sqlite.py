@@ -1,5 +1,6 @@
 import sqlite3
 import re
+from llm_summary import generate_llm_summary
 
 DB_PATH = "distress.db"
 
@@ -49,7 +50,6 @@ def retrieve_distress(context, confidence_threshold=0.6, top_k=5):
         )
 
     scored.sort(key=lambda x: (x[0], x[5]), reverse=True)
-
     return scored[:top_k]
 
 
@@ -93,6 +93,8 @@ if __name__ == "__main__":
     print("\nDistress Retrieval System")
     print("Type a context query (type 'exit' to quit)\n")
 
+    USE_LLM = True   # toggle here (safe place)
+
     while True:
         query = input("Enter context query: ").strip()
 
@@ -134,5 +136,13 @@ if __name__ == "__main__":
         print("Key Observations:")
         for line in evidence["summary"]:
             print(f"- {line}")
+
+        # -------- LLM EXPLANATION (POST-RETRIEVAL) --------
+        if USE_LLM:
+            explanation = generate_llm_summary(query, results, evidence)
+            print("\n" + "=" * 30)
+            print("LLM Explanation")
+            print("=" * 30)
+            print(explanation)
 
         print("\n" + "-" * 50 + "\n")
