@@ -69,7 +69,7 @@ def is_valid_speech(text: str) -> bool:
     if alpha_ratio < 0.5:
         return False
 
-    # 3. Reject elongated characters (AAAAA, ああああ)
+    # 3. Reject elongated characters (AAAAA, ああああ, EEEEE)
     if re.search(r"(.)\1{5,}", text):
         return False
 
@@ -80,7 +80,7 @@ def is_valid_speech(text: str) -> bool:
         if most_common / len(words) > 0.5:
             return False
 
-    # 5. Reject very short repeated tokens
+    # 5. Reject very short repeated tokens ("yeah yeah yeah")
     if len(set(words)) <= 2 and len(words) > 5:
         return False
 

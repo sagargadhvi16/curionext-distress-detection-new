@@ -27,12 +27,18 @@ Multi-modal AI system for real-time child distress detection using audio and bio
 git clone https://github.com/YOUR-USERNAME/curionext-distress-detection.git
 cd curionext-distress-detection
 
+# Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
+# Install dependencies
 pip install -r requirements.txt
 
-cp .env.example .env
+# Install package in development mode
+pip install -e .
+
+# Copy environment file (if exists)
+# cp .env.example .env
 ```
 
 ### Development Workflow
@@ -60,6 +66,63 @@ pytest tests/test_audio.py          # Run specific test
 pytest --cov=src tests/             # Run with coverage
 ```
 
+## ⚙️ Configuration
+
+The project uses YAML-based configuration management. Configuration files are located in `configs/`:
+
+- `model_config.yaml` - Model architecture and hyperparameters
+- `training_config.yaml` - Training settings, loss, and data splits
+- `deployment_config.yaml` - API and inference settings
+
+### Usage Example
+
+```python
+from src.utils.config import Config
+
+# Load single config file
+config = Config.from_files('configs/model_config.yaml')
+
+# Load and merge multiple configs (later files override earlier ones)
+config = Config.from_files('configs/model_config.yaml', 'configs/training_config.yaml')
+
+# Access configuration values
+audio_dim = config.get('audio_encoder.embedding_dim')  # Dot notation
+learning_rate = config.training.learning_rate  # Attribute access
+```
+
+## 📝 Logging
+
+Structured logging is set up with console (colored) and file (rotating) handlers:
+
+```python
+from src.utils.logger import setup_logger
+
+# Setup logger with file logging
+logger = setup_logger(__name__, log_file='api.log', level=logging.DEBUG)
+
+# Use logger
+logger.debug("Debug message")
+logger.info("Info message")
+logger.warning("Warning message")
+logger.error("Error message")
+```
+
+Logs are written to `logs/` directory with automatic rotation (10MB per file, 5 backups).
+
+## ✅ Verify Setup
+
+To verify everything is working correctly:
+
+```bash
+# Quick verification (recommended)
+python scripts/verify_setup.py
+
+# Detailed tests
+python scripts/test_setup.py
+```
+
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) for detailed verification steps.
+
 ## 📦 Tech Stack
 
 - **ML:** PyTorch, TensorFlow Hub (YAMNet)
@@ -68,6 +131,8 @@ pytest --cov=src tests/             # Run with coverage
 - **Backend:** FastAPI, uvicorn
 - **XAI:** SHAP
 - **Testing:** pytest
+- **Configuration:** YAML-based config management
+- **Logging:** Structured logging with file rotation
 
 ## 🎯 Performance Targets
 

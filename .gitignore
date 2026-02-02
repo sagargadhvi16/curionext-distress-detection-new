@@ -52,6 +52,7 @@ logs/
 wandb/
 tensorboard/
 
+
 #experimental
 # virtual envs
 venv/
@@ -68,4 +69,9 @@ audio_experiments/embeddings/
 emotion2vec/
 emotion2vec.zip
 
+<<<<<<< HEAD
 data/CurioNext_Audio/
+=======
+# audio data (local only)
+data/CurioNext_Audio/
+>>>>>>> feature/fusion-backend
