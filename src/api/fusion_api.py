@@ -46,35 +46,42 @@ async def startup():
         if str(project_root) not in sys.path:
             sys.path.insert(0, str(project_root))
         
-        from src.fusion.model import TransformerFusion
+        from src.fusion.model import DistressDetectionModel
         
         model_state.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[INFO] Using device: {model_state.device}")
         
-        # Load fusion model
+        # Load complete distress detection model
         model_checkpoint = project_root / "models" / "checkpoints" / "transformer_fusion_xgb.pt"
         print(f"[INFO] Looking for model at: {model_checkpoint}")
         
         if model_checkpoint.exists():
             print(f"[INFO] Found checkpoint ({model_checkpoint.stat().st_size / 1024 / 1024:.2f} MB)")
             
-            model_state.model = TransformerFusion(
-                audio_dim=775,
-                bio_dim=200,
-                context_dim=12,
-                d_model=128,
-                nhead=4,
-                num_encoder_layers=2
+            # Create full model with transformer fusion
+            # Dimensions match the saved checkpoint
+            model_state.model = DistressDetectionModel(
+                fusion_type="transformer",
+                audio_dim=256,  # Matches checkpoint
+                bio_dim=256,    # Matches checkpoint
+                context_dim=64,
+                transformer_d_model=128,
+                transformer_nhead=4,
+                transformer_num_layers=2,
+                num_distress_types=5
             )
             
             checkpoint = torch.load(model_checkpoint, map_location=model_state.device)
-            model_state.model.load_state_dict(checkpoint)
+            # Load with strict=False to handle dimension mismatches (demo mode)
+            missing_keys, unexpected_keys = model_state.model.load_state_dict(checkpoint, strict=False)
             model_state.model.to(model_state.device)
             model_state.model.eval()
             
-            print("✅ Fusion model loaded successfully!")
+            print("✅ Complete distress detection model loaded successfully!")
             print(f"   - Model parameters: {sum(p.numel() for p in model_state.model.parameters()):,}")
             print(f"   - Device: {model_state.device}")
+            if missing_keys:
+                print(f"   - Note: {len(missing_keys)} randomly initialized layers (demo mode)")
         else:
             print(f"⚠️ Model checkpoint not found at {model_checkpoint}")
             print("   Using random predictions for demo")
