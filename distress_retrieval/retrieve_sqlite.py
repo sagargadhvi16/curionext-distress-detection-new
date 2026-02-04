@@ -1,8 +1,10 @@
 import sqlite3
 import re
+import os
 
-DB_PATH = "distress.db"
-
+# ALWAYS resolve DB relative to this file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "distress.db")
 # ------------------ TEXT UTILS ------------------
 
 def normalize(text: str) -> str:
