@@ -6,7 +6,7 @@ import numpy as np
 import json
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import io
 import librosa
 
@@ -31,8 +31,37 @@ class ModelState:
     model = None
     xgb_model = None
     device = None
+    inference_count = 0
+    confidence_sum = 0.0
+    total_inference_ms = 0.0
+    last_inference_ms: Optional[float] = None
     
 model_state = ModelState()
+
+
+def _get_project_root() -> Path:
+    return Path(__file__).parent.parent.parent
+
+
+def _load_metrics_report() -> Dict:
+    report_path = _get_project_root() / "evaluation_results" / "metrics_report.json"
+    if report_path.exists():
+        with open(report_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _load_training_epochs() -> Optional[int]:
+    config_path = _get_project_root() / "configs" / "training_config.yaml"
+    if not config_path.exists():
+        return None
+    try:
+        import yaml
+    except Exception:
+        return None
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    return config.get("training", {}).get("epochs")
 
 @app.on_event("startup")
 async def startup():
@@ -42,7 +71,7 @@ async def startup():
         from pathlib import Path
         
         # Add project root to path
-        project_root = Path(__file__).parent.parent.parent
+        project_root = _get_project_root()
         if str(project_root) not in sys.path:
             sys.path.insert(0, str(project_root))
         
@@ -98,14 +127,28 @@ async def health_check():
 @app.get("/fusion/metrics")
 async def get_fusion_metrics():
     """Get model performance metrics"""
+    report = _load_metrics_report()
+    distress_metrics = report.get("distress_detection", {})
+    accuracy = distress_metrics.get("accuracy")
+    total_samples = None
+    classification_report = distress_metrics.get("classification_report", {})
+    if isinstance(classification_report, dict):
+        total_samples = classification_report.get("weighted avg", {}).get("support")
+
+    average_confidence = None
+    if model_state.inference_count > 0:
+        average_confidence = model_state.confidence_sum / model_state.inference_count
+
+    training_epochs = _load_training_epochs()
+
     return {
-        "distress_detection_accuracy": 1.0,
-        "average_confidence": 0.92,
-        "inference_speed_ms": 145,
-        "total_samples_processed": 990,
+        "distress_detection_accuracy": accuracy,
+        "average_confidence": average_confidence,
+        "inference_speed_ms": model_state.last_inference_ms,
+        "total_samples_processed": total_samples,
         "model_version": "v1.0-transformer-fusion",
-        "training_epochs": 10,
-        "final_loss": 0.023
+        "training_epochs": training_epochs,
+        "final_loss": None
     }
 
 
@@ -190,6 +233,11 @@ async def fusion_predict(
             distress_type = "None"
         
         processing_time_ms = int((time.time() - start_time) * 1000)
+
+        model_state.inference_count += 1
+        model_state.confidence_sum += float(confidence)
+        model_state.total_inference_ms += processing_time_ms
+        model_state.last_inference_ms = processing_time_ms
         
         return {
             "distress_detected": bool(distress_detected),
