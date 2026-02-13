@@ -31,7 +31,7 @@ models/pretrained/*
 
 # Data - NEVER commit
 *.wav
-*.mp3
+.mp3
 *.flac
 data/raw/*
 data/processed/*
@@ -39,6 +39,7 @@ data/synthetic/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/synthetic/.gitkeep
+
 
 # Secrets
 .env
@@ -50,3 +51,27 @@ credentials.json
 logs/
 wandb/
 tensorboard/
+
+
+#experimental
+# virtual envs
+venv/
+venv_emotion2vec/
+
+# large / generated data
+audio_experiments/input/
+audio_experiments/embeddings/
+*.wav
+*.npz
+*.npy
+
+# experiments / temp
+emotion2vec/
+emotion2vec.zip
+
+<<<<<<< HEAD
+data/CurioNext_Audio/
+=======
+# audio data (local only)
+data/CurioNext_Audio/
+>>>>>>> feature/fusion-backend

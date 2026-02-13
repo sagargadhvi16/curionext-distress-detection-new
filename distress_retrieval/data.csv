@@ -1,0 +1,302 @@
+record_id,timestamp,transcript,primary_class,sub_class,distress_flag,confidence
+1,2026-02-01 10:00:00,why are you shouting like this please stop,high_arousal,scream,1,0.94
+2,2026-02-01 10:01:00,dont talk to me like that okay,high_arousal,abuse,1,0.93
+3,2026-02-01 10:02:00,i dont feel safe right now,distress,fear,1,0.95
+4,2026-02-01 10:03:00,she is crying i can hear her,distress,cry,1,0.92
+5,2026-02-01 10:04:00,we are just talking about dinner,neutral,neutral,0,0.7
+6,2026-02-01 10:05:00,he suddenly started yelling at me,high_arousal,anger,1,0.91
+7,2026-02-01 10:06:00,something feels wrong here,distress,fear,1,0.94
+8,2026-02-01 10:07:00,uh she keeps crying loudly,distress,cry,1,0.93
+9,2026-02-01 10:08:00,he keeps saying really bad things,high_arousal,abuse,1,0.92
+10,2026-02-01 10:09:00,discussion about work plans later,neutral,neutral,0,0.69
+11,2026-02-01 10:10:00,he screamed again i told him to stop,high_arousal,scream,1,0.95
+12,2026-02-01 10:11:00,my hands are shaking i cant think,distress,fear,1,0.94
+13,2026-02-01 10:12:00,he got really mad all of a sudden,high_arousal,anger,1,0.91
+14,2026-02-01 10:13:00,she is crying and breathing fast,distress,cry,1,0.93
+15,2026-02-01 10:14:00,yeah that sounds fine to me,neutral,neutral,0,0.68
+16,2026-02-01 10:15:00,he said something really hurtful,high_arousal,abuse,1,0.94
+17,2026-02-01 10:16:00,i feel very uneasy here,distress,fear,1,0.95
+18,2026-02-01 10:17:00,please she is crying again,distress,cry,1,0.94
+19,2026-02-01 10:18:00,he shouted right in my face,high_arousal,scream,1,0.92
+20,2026-02-01 10:19:00,just a normal friendly talk,neutral,neutral,0,0.67
+21,2026-02-01 10:20:00,he lost control and started yelling,high_arousal,anger,1,0.93
+22,2026-02-01 10:21:00,i feel like something bad might happen,distress,fear,1,0.95
+23,2026-02-01 10:22:00,you can hear someone crying,distress,cry,1,0.92
+24,2026-02-01 10:23:00,he keeps insulting me,high_arousal,abuse,1,0.91
+25,2026-02-01 10:24:00,general discussion about plans,neutral,neutral,0,0.69
+26,2026-02-01 10:25:00,he screamed very loudly again,high_arousal,scream,1,0.94
+27,2026-02-01 10:26:00,my heart is racing,distress,fear,1,0.95
+28,2026-02-01 10:27:00,she wont stop crying,distress,cry,1,0.93
+29,2026-02-01 10:28:00,he is yelling nearby,high_arousal,anger,1,0.91
+30,2026-02-01 10:29:00,normal office conversation,neutral,neutral,0,0.68
+31,2026-02-01 10:30:00,he said things he should not say,high_arousal,abuse,1,0.94
+32,2026-02-01 10:31:00,i feel frozen right now,distress,fear,1,0.95
+33,2026-02-01 10:32:00,crying sounds coming from there,distress,cry,1,0.92
+34,2026-02-01 10:33:00,there is a lot of loud shouting,high_arousal,scream,1,0.93
+35,2026-02-01 10:34:00,routine conversation happening,neutral,neutral,0,0.69
+36,2026-02-01 10:35:00,he got angry and raised his voice,high_arousal,anger,1,0.92
+37,2026-02-01 10:36:00,i dont know what to do,distress,fear,1,0.94
+38,2026-02-01 10:37:00,she is crying because of that,distress,cry,1,0.93
+39,2026-02-01 10:38:00,he keeps using bad language,high_arousal,abuse,1,0.91
+40,2026-02-01 10:39:00,talking about daily stuff,neutral,neutral,0,0.7
+41,2026-02-01 10:40:00,he screamed angrily again,high_arousal,scream,1,0.94
+42,2026-02-01 10:41:00,something doesnt feel right,distress,fear,1,0.95
+43,2026-02-01 10:42:00,you can hear her crying,distress,cry,1,0.92
+44,2026-02-01 10:43:00,he suddenly snapped,high_arousal,anger,1,0.91
+45,2026-02-01 10:44:00,just calm normal discussion,neutral,neutral,0,0.69
+46,2026-02-01 10:45:00,he shouted and insulted me,high_arousal,abuse,1,0.93
+47,2026-02-01 10:46:00,i am really nervous right now,distress,fear,1,0.95
+48,2026-02-01 10:47:00,she is sobbing loudly,distress,cry,1,0.94
+49,2026-02-01 10:48:00,very loud yelling happening,high_arousal,scream,1,0.92
+50,2026-02-01 10:49:00,general chat going on,neutral,neutral,0,0.68
+51,2026-02-01 10:50:00,he was yelling non stop,high_arousal,anger,1,0.93
+52,2026-02-01 10:51:00,i feel like running away,distress,fear,1,0.95
+53,2026-02-01 10:52:00,she is crying softly,distress,cry,1,0.94
+54,2026-02-01 10:53:00,he keeps verbally attacking,high_arousal,abuse,1,0.91
+55,2026-02-01 10:54:00,normal conversation here,neutral,neutral,0,0.69
+56,2026-02-01 10:55:00,someone is screaming very loudly,high_arousal,scream,1,0.94
+57,2026-02-01 10:56:00,i cant calm myself,distress,fear,1,0.95
+58,2026-02-01 10:57:00,crying keeps getting louder,distress,cry,1,0.93
+59,2026-02-01 10:58:00,he is shouting angrily,high_arousal,anger,1,0.92
+60,2026-02-01 10:59:00,routine office discussion,neutral,neutral,0,0.68
+61,2026-02-01 11:00:00,he is yelling and saying bad stuff,high_arousal,abuse,1,0.94
+62,2026-02-01 11:01:00,my chest feels tight,distress,fear,1,0.95
+63,2026-02-01 11:02:00,she is crying again,distress,cry,1,0.93
+64,2026-02-01 11:03:00,i hear someone screaming,high_arousal,scream,1,0.92
+65,2026-02-01 11:04:00,casual talk happening,neutral,neutral,0,0.67
+66,2026-02-01 11:05:00,he raised his voice suddenly,high_arousal,anger,1,0.93
+67,2026-02-01 11:06:00,i feel really scared,distress,fear,1,0.94
+68,2026-02-01 11:07:00,crying mixed with talking,distress,cry,1,0.92
+69,2026-02-01 11:08:00,he keeps insulting loudly,high_arousal,abuse,1,0.91
+70,2026-02-01 11:09:00,normal daily talk,neutral,neutral,0,0.68
+71,2026-02-01 11:10:00,loud screaming again,high_arousal,scream,1,0.95
+72,2026-02-01 11:11:00,my body feels tense,distress,fear,1,0.95
+73,2026-02-01 11:12:00,she is crying because he yelled,distress,cry,1,0.93
+74,2026-02-01 11:13:00,he suddenly exploded,high_arousal,anger,1,0.92
+75,2026-02-01 11:14:00,general discussion going on,neutral,neutral,0,0.69
+76,2026-02-01 11:15:00,he keeps shouting at me,high_arousal,abuse,1,0.94
+77,2026-02-01 11:16:00,i feel like im in danger,distress,fear,1,0.95
+78,2026-02-01 11:17:00,crying for help can be heard,distress,cry,1,0.94
+79,2026-02-01 11:18:00,more screaming coming from inside,high_arousal,scream,1,0.92
+80,2026-02-01 11:19:00,calm conversation,neutral,neutral,0,0.68
+81,2026-02-01 11:20:00,he shouted in anger,high_arousal,anger,1,0.93
+82,2026-02-01 11:21:00,i feel really uneasy,distress,fear,1,0.95
+83,2026-02-01 11:22:00,she is crying again,distress,cry,1,0.93
+84,2026-02-01 11:23:00,he keeps talking badly,high_arousal,abuse,1,0.91
+85,2026-02-01 11:24:00,routine chat,neutral,neutral,0,0.69
+86,2026-02-01 11:25:00,angry shouting from nearby,high_arousal,anger,1,0.94
+87,2026-02-01 11:26:00,i dont feel safe,distress,fear,1,0.95
+88,2026-02-01 11:27:00,crying sounds again,distress,cry,1,0.92
+89,2026-02-01 11:28:00,someone screamed loudly,high_arousal,scream,1,0.93
+90,2026-02-01 11:29:00,normal office call,neutral,neutral,0,0.68
+91,2026-02-01 11:30:00,he yelled insults,high_arousal,abuse,1,0.94
+92,2026-02-01 11:31:00,im shaking a little,distress,fear,1,0.95
+93,2026-02-01 11:32:00,crying in the background,distress,cry,1,0.93
+94,2026-02-01 11:33:00,he snapped and yelled,high_arousal,anger,1,0.92
+95,2026-02-01 11:34:00,general calm talk,neutral,neutral,0,0.69
+96,2026-02-01 11:35:00,screaming happened again,high_arousal,scream,1,0.95
+97,2026-02-01 11:36:00,i feel very unsafe,distress,fear,1,0.95
+98,2026-02-01 11:37:00,continuous crying sound,distress,cry,1,0.94
+99,2026-02-01 11:38:00,he keeps being verbally harsh,high_arousal,abuse,1,0.92
+100,2026-02-01 11:39:00,casual conversation,neutral,neutral,0,0.68
+101,2026-02-01 11:40:00,he started shouting again i asked him to stop,high_arousal,scream,1,0.95
+102,2026-02-01 11:41:00,why are you saying things like that to me,high_arousal,abuse,1,0.94
+103,2026-02-01 11:42:00,i dont feel okay here,distress,fear,1,0.96
+104,2026-02-01 11:43:00,she keeps crying i can hear it clearly,distress,cry,1,0.94
+105,2026-02-01 11:44:00,we will talk about this later,neutral,neutral,0,0.7
+106,2026-02-01 11:45:00,he got really loud all of a sudden,high_arousal,anger,1,0.92
+107,2026-02-01 11:46:00,something feels very wrong right now,distress,fear,1,0.95
+108,2026-02-01 11:47:00,she is crying and breathing heavily,distress,cry,1,0.93
+109,2026-02-01 11:48:00,he keeps talking in a very bad way,high_arousal,abuse,1,0.92
+110,2026-02-01 11:49:00,just discussing office stuff,neutral,neutral,0,0.69
+111,2026-02-01 11:50:00,he screamed again without warning,high_arousal,scream,1,0.94
+112,2026-02-01 11:51:00,my heart is beating very fast,distress,fear,1,0.96
+113,2026-02-01 11:52:00,i can hear crying in the background,distress,cry,1,0.94
+114,2026-02-01 11:53:00,he suddenly lost his temper,high_arousal,anger,1,0.92
+115,2026-02-01 11:54:00,yeah thats fine lets do that,neutral,neutral,0,0.68
+116,2026-02-01 11:55:00,he said something very insulting,high_arousal,abuse,1,0.94
+117,2026-02-01 11:56:00,i feel stuck and cant move,distress,fear,1,0.96
+118,2026-02-01 11:57:00,she keeps sobbing and coughing,distress,cry,1,0.93
+119,2026-02-01 11:58:00,there was a lot of screaming just now,high_arousal,scream,1,0.94
+120,2026-02-01 11:59:00,normal daily conversation,neutral,neutral,0,0.69
+121,2026-02-01 12:00:00,he raised his voice again,high_arousal,anger,1,0.93
+122,2026-02-01 12:01:00,i feel like something bad is coming,distress,fear,1,0.96
+123,2026-02-01 12:02:00,someone nearby is crying loudly,distress,cry,1,0.94
+124,2026-02-01 12:03:00,he keeps using harsh words,high_arousal,abuse,1,0.92
+125,2026-02-01 12:04:00,general calm discussion,neutral,neutral,0,0.7
+126,2026-02-01 12:05:00,i heard loud screaming from inside,high_arousal,scream,1,0.95
+127,2026-02-01 12:06:00,my body feels very tense,distress,fear,1,0.96
+128,2026-02-01 12:07:00,she is crying again and again,distress,cry,1,0.94
+129,2026-02-01 12:08:00,he started yelling for no reason,high_arousal,anger,1,0.92
+130,2026-02-01 12:09:00,normal office call,neutral,neutral,0,0.69
+131,2026-02-01 12:10:00,he keeps saying hurtful things,high_arousal,abuse,1,0.94
+132,2026-02-01 12:11:00,i dont feel safe standing here,distress,fear,1,0.96
+133,2026-02-01 12:12:00,crying sounds coming through,distress,cry,1,0.93
+134,2026-02-01 12:13:00,someone is screaming very loudly,high_arousal,scream,1,0.95
+135,2026-02-01 12:14:00,routine conversation,neutral,neutral,0,0.68
+136,2026-02-01 12:15:00,he suddenly snapped and yelled,high_arousal,anger,1,0.93
+137,2026-02-01 12:16:00,i feel frozen and scared,distress,fear,1,0.96
+138,2026-02-01 12:17:00,she is crying softly now,distress,cry,1,0.94
+139,2026-02-01 12:18:00,he keeps verbally attacking me,high_arousal,abuse,1,0.92
+140,2026-02-01 12:19:00,normal discussion going on,neutral,neutral,0,0.69
+141,2026-02-01 12:20:00,there was screaming again,high_arousal,scream,1,0.95
+142,2026-02-01 12:21:00,my chest feels tight suddenly,distress,fear,1,0.96
+143,2026-02-01 12:22:00,i can hear her crying clearly,distress,cry,1,0.94
+144,2026-02-01 12:23:00,he started shouting very loudly,high_arousal,anger,1,0.92
+145,2026-02-01 12:24:00,casual friendly talk,neutral,neutral,0,0.7
+146,2026-02-01 12:25:00,he said something really disrespectful,high_arousal,abuse,1,0.94
+147,2026-02-01 12:26:00,i dont know what to do right now,distress,fear,1,0.96
+148,2026-02-01 12:27:00,she is crying and calling out,distress,cry,1,0.93
+149,2026-02-01 12:28:00,loud screaming happened again,high_arousal,scream,1,0.95
+150,2026-02-01 12:29:00,general chat,neutral,neutral,0,0.68
+151,2026-02-01 12:30:00,he got angry very quickly,high_arousal,anger,1,0.93
+152,2026-02-01 12:31:00,i feel very uncomfortable here,distress,fear,1,0.96
+153,2026-02-01 12:32:00,crying continues in the background,distress,cry,1,0.94
+154,2026-02-01 12:33:00,he keeps insulting me loudly,high_arousal,abuse,1,0.92
+155,2026-02-01 12:34:00,normal calm conversation,neutral,neutral,0,0.69
+156,2026-02-01 12:35:00,someone screamed suddenly,high_arousal,scream,1,0.95
+157,2026-02-01 12:36:00,i feel really nervous,distress,fear,1,0.96
+158,2026-02-01 12:37:00,she is crying nonstop,distress,cry,1,0.93
+159,2026-02-01 12:38:00,he shouted and slammed something,high_arousal,anger,1,0.92
+160,2026-02-01 12:39:00,routine office talk,neutral,neutral,0,0.68
+161,2026-02-01 12:40:00,he keeps yelling bad things,high_arousal,abuse,1,0.94
+162,2026-02-01 12:41:00,my hands feel cold,distress,fear,1,0.96
+163,2026-02-01 12:42:00,crying can be heard again,distress,cry,1,0.94
+164,2026-02-01 12:43:00,screaming sounds coming closer,high_arousal,scream,1,0.95
+165,2026-02-01 12:44:00,general conversation,neutral,neutral,0,0.69
+166,2026-02-01 12:45:00,he lost control and shouted,high_arousal,anger,1,0.93
+167,2026-02-01 12:46:00,i feel unsafe staying here,distress,fear,1,0.96
+168,2026-02-01 12:47:00,she keeps crying softly,distress,cry,1,0.93
+169,2026-02-01 12:48:00,he said very hurtful words,high_arousal,abuse,1,0.92
+170,2026-02-01 12:49:00,normal daily discussion,neutral,neutral,0,0.68
+171,2026-02-01 12:50:00,screaming happened nearby,high_arousal,scream,1,0.95
+172,2026-02-01 12:51:00,i feel very tense inside,distress,fear,1,0.96
+173,2026-02-01 12:52:00,crying mixed with talking,distress,cry,1,0.94
+174,2026-02-01 12:53:00,he started yelling again,high_arousal,anger,1,0.92
+175,2026-02-01 12:54:00,casual normal talk,neutral,neutral,0,0.69
+176,2026-02-01 12:55:00,he keeps being rude and loud,high_arousal,abuse,1,0.94
+177,2026-02-01 12:56:00,i feel frozen in place,distress,fear,1,0.96
+178,2026-02-01 12:57:00,she is crying asking for help,distress,cry,1,0.94
+179,2026-02-01 12:58:00,someone screamed again,high_arousal,scream,1,0.95
+180,2026-02-01 12:59:00,normal office discussion,neutral,neutral,0,0.68
+181,2026-02-01 13:00:00,he got angry over nothing,high_arousal,anger,1,0.93
+182,2026-02-01 13:01:00,i dont feel okay anymore,distress,fear,1,0.96
+183,2026-02-01 13:02:00,crying continues softly,distress,cry,1,0.93
+184,2026-02-01 13:03:00,he keeps using harsh language,high_arousal,abuse,1,0.92
+185,2026-02-01 13:04:00,general calm chat,neutral,neutral,0,0.69
+186,2026-02-01 13:05:00,loud screaming from inside,high_arousal,scream,1,0.95
+187,2026-02-01 13:06:00,i feel something is very wrong,distress,fear,1,0.96
+188,2026-02-01 13:07:00,she is crying and shaking,distress,cry,1,0.94
+189,2026-02-01 13:08:00,i will shout loudly leaveee,high_arousal,anger,1,0.92
+190,2026-02-01 13:09:00,routine conversation,neutral,neutral,0,0.68
+191,2026-02-01 13:10:00,he keeps insulting and yelling,high_arousal,abuse,1,0.94
+192,2026-02-01 13:11:00,i feel like i might faint,distress,fear,1,0.96
+193,2026-02-01 13:12:00,please go away i beg you,distress,cry,1,0.94
+194,2026-02-01 13:13:00,screaming echoed through the room,high_arousal,scream,1,0.95
+195,2026-02-01 13:14:00,normal discussion,neutral,neutral,0,0.69
+196,2026-02-01 13:15:00,Dont touch me go away,high_arousal,anger,1,0.93
+197,2026-02-01 13:16:00,i feel very uneasy,distress,fear,1,0.96
+198,2026-02-01 13:17:00,i said leave me ,distress,cry,1,0.94
+199,2026-02-01 13:18:00,he keeps saying awful things,high_arousal,abuse,1,0.92
+200,2026-02-01 13:19:00,casual conversation,neutral,neutral,0,0.68
+201,2026-02-01 13:20:00,woh phir se bina wajah chilla raha hai,high_arousal,anger,1,0.94
+202,2026-02-01 13:21:00,mujhe safe feel nahi ho raha yahan,distress,fear,1,0.96
+203,2026-02-01 13:22:00,roone ki awaaz dheere dheere aa rahi hai,distress,cry,1,0.93
+204,2026-02-01 13:23:00,woh gandi baatein bol raha hai lagatar,high_arousal,abuse,1,0.92
+205,2026-02-01 13:24:00,bas shaant si baat chal rahi hai abhi,neutral,neutral,0,0.69
+206,2026-02-01 13:25:00,andar se zor zor se cheekhna sunai de raha hai,high_arousal,scream,1,0.95
+207,2026-02-01 13:26:00,mujhe lag raha hai kuch gadbad hone wali hai,distress,fear,1,0.96
+208,2026-02-01 13:27:00,woh ro rahi hai aur saans tez ho rahi hai,distress,cry,1,0.94
+209,2026-02-01 13:28:00,agar tu nahi maana toh main chilla dunga,high_arousal,anger,1,0.92
+210,2026-02-01 13:29:00,normal si baat ho rahi hai dono ke beech,neutral,neutral,0,0.68
+211,2026-02-01 13:30:00,woh mujhe neecha dikhane wali baatein bol raha hai,high_arousal,abuse,1,0.94
+212,2026-02-01 13:31:00,dil zor zor se dhadak raha hai,distress,fear,1,0.96
+213,2026-02-01 13:32:00,please bas ab chhod do mujhe,distress,cry,1,0.94
+214,2026-02-01 13:33:00,poore ghar mein cheekhne ki awaaz fail gayi,high_arousal,scream,1,0.95
+215,2026-02-01 13:34:00,bas routine discussion chal rahi hai,neutral,neutral,0,0.69
+216,2026-02-01 13:35:00,uska gussa control se bahar ja raha hai,high_arousal,anger,1,0.93
+217,2026-02-01 13:36:00,mujhe yahan rehna bilkul theek nahi lag raha,distress,fear,1,0.96
+218,2026-02-01 13:37:00,woh ro rahi hai aur chup nahi ho pa rahi,distress,cry,1,0.94
+219,2026-02-01 13:38:00,woh chilla chilla ke dhamki de raha hai,high_arousal,abuse,1,0.92
+220,2026-02-01 13:39:00,shaant tareeke se baat ho rahi hai,neutral,neutral,0,0.68
+220,2026-02-01 13:40:00,please dont touch me like that,distress,fear,1,0.95
+221,2026-02-01 13:41:00,he tried to grab my arm i told him to stop,high_arousal,anger,1,0.94
+222,2026-02-01 13:42:00,someone keeps getting too close to me,distress,fear,1,0.96
+223,2026-02-01 13:43:00,she is crying saying dont touch me,distress,cry,1,0.94
+224,2026-02-01 13:44:00,he pushed me away and started shouting,high_arousal,anger,1,0.93
+225,2026-02-01 13:45:00,we were sitting normally and talking,neutral,neutral,0,0.69
+226,2026-02-01 13:46:00,dont come near me please,distress,fear,1,0.95
+227,2026-02-01 13:47:00,he touched my shoulder and i felt uncomfortable,high_arousal,abuse,1,0.92
+228,2026-02-01 13:48:00,she moved her hand away and stepped back,neutral,neutral,0,0.7
+229,2026-02-01 13:49:00,he kept reaching out even after i said no,high_arousal,abuse,1,0.94
+230,2026-02-01 13:50:00,everyone was standing quietly in the room,neutral,neutral,0,0.68
+231,2026-02-01 13:51:00,stop talking to me like that,high_arousal,abuse,1,0.94
+232,2026-02-01 13:52:00,we were just discussing the plan calmly,neutral,neutral,0,0.7
+233,2026-02-01 13:53:00,he keeps calling me names and yelling,high_arousal,abuse,1,0.95
+234,2026-02-01 13:54:00,this conversation is going nowhere,neutral,neutral,0,0.69
+235,2026-02-01 13:55:00,dont raise your voice at me,high_arousal,anger,1,0.93
+236,2026-02-01 13:56:00,everyone was sitting and listening quietly,neutral,neutral,0,0.68
+237,2026-02-01 13:57:00,he said something really disrespectful again,high_arousal,abuse,1,0.94
+238,2026-02-01 13:58:00,we agreed to talk about it later,neutral,neutral,0,0.7
+239,2026-02-01 13:59:00,why are you being so rude to me,high_arousal,abuse,1,0.93
+240,2026-02-01 14:00:00,normal discussion during the meeting,neutral,neutral,0,0.69
+241,2026-02-01 14:01:00,he keeps shouting and insulting me,high_arousal,abuse,1,0.95
+242,2026-02-01 14:02:00,we were chatting normally about work,neutral,neutral,0,0.7
+243,2026-02-01 14:03:00,dont speak to me in that tone,high_arousal,anger,1,0.93
+244,2026-02-01 14:04:00,everyone remained calm throughout,neutral,neutral,0,0.68
+245,2026-02-01 14:05:00,he crossed the line with his words,high_arousal,abuse,1,0.94
+246,2026-02-01 14:06:00,it was just a casual conversation,neutral,neutral,0,0.69
+247,2026-02-01 14:07:00,he suddenly started being verbally aggressive,high_arousal,abuse,1,0.95
+248,2026-02-01 14:08:00,nothing unusual happened during the call,neutral,neutral,0,0.7
+249,2026-02-01 14:09:00,im tired of the way you talk to me,high_arousal,abuse,1,0.94
+250,2026-02-01 14:10:00,the discussion ended peacefully,neutral,neutral,0,0.69
+251,2026-02-01 14:11:00,they keep making fun of me in front of everyone,high_arousal,abuse,1,0.94
+252,2026-02-01 14:12:00,we were just talking about the assignment,neutral,neutral,0,0.7
+253,2026-02-01 14:13:00,he keeps laughing at me and calling me names,high_arousal,abuse,1,0.95
+254,2026-02-01 14:14:00,everyone stayed quiet during the discussion,neutral,neutral,0,0.69
+255,2026-02-01 14:15:00,they told me im useless and should leave,high_arousal,abuse,1,0.96
+256,2026-02-01 14:16:00,it was a normal conversation in class,neutral,neutral,0,0.68
+257,2026-02-01 14:17:00,they keep pushing me around and joking,high_arousal,anger,1,0.93
+258,2026-02-01 14:18:00,people were sitting and listening calmly,neutral,neutral,0,0.69
+259,2026-02-01 14:19:00,he keeps picking on me every day,high_arousal,abuse,1,0.95
+260,2026-02-01 14:20:00,nothing unusual happened during the break,neutral,neutral,0,0.7
+261,2026-02-01 14:21:00,they all started laughing when i spoke,distress,fear,1,0.94
+262,2026-02-01 14:22:00,we were chatting casually after the meeting,neutral,neutral,0,0.69
+263,2026-02-01 14:23:00,he keeps saying embarrassing things about me,high_arousal,abuse,1,0.95
+264,2026-02-01 14:24:00,the group discussion went smoothly,neutral,neutral,0,0.7
+265,2026-02-01 14:25:00,they told me not to sit with them,distress,fear,1,0.96
+266,2026-02-01 14:26:00,everyone was working quietly,neutral,neutral,0,0.68
+267,2026-02-01 14:27:00,he shoved me and others laughed,high_arousal,anger,1,0.94
+268,2026-02-01 14:28:00,the room stayed calm and quiet,neutral,neutral,0,0.69
+269,2026-02-01 14:29:00,they keep targeting me for no reason,distress,fear,1,0.95
+270,2026-02-01 14:30:00,the conversation ended without issues,neutral,neutral,0,0.7
+271,2026-02-01 14:31:00,her voice keeps breaking while she speaks,distress,cry,1,0.94
+272,2026-02-01 14:32:00,we were just waiting for the meeting to start,neutral,neutral,0,0.7
+273,2026-02-01 14:33:00,she could barely finish the sentence,distress,cry,1,0.95
+274,2026-02-01 14:34:00,everyone was talking quietly,neutral,neutral,0,0.69
+275,2026-02-01 14:35:00,there are tears running down her face,distress,cry,1,0.96
+276,2026-02-01 14:36:00,the conversation stayed calm,neutral,neutral,0,0.68
+277,2026-02-01 14:37:00,she keeps wiping her eyes and looking down,distress,cry,1,0.95
+278,2026-02-01 14:38:00,people were discussing the schedule,neutral,neutral,0,0.7
+279,2026-02-01 14:39:00,her breathing sounds shaky,distress,cry,1,0.94
+280,2026-02-01 14:40:00,nothing unusual was happening,neutral,neutral,0,0.69
+281,2026-02-01 14:41:00,she was sobbing quietly in the corner,distress,cry,1,0.96
+282,2026-02-01 14:42:00,we were chatting normally,neutral,neutral,0,0.68
+283,2026-02-01 14:43:00,her hands are shaking and she cant speak,distress,cry,1,0.95
+284,2026-02-01 14:44:00,the room stayed peaceful,neutral,neutral,0,0.69
+285,2026-02-01 14:45:00,she covered her face and stayed silent,distress,cry,1,0.94
+286,2026-02-01 14:46:00,everyone remained relaxed,neutral,neutral,0,0.7
+287,2026-02-01 14:47:00,her eyes look red and swollen,distress,cry,1,0.96
+288,2026-02-01 14:48:00,it was just a regular discussion,neutral,neutral,0,0.69
+289,2026-02-01 14:49:00,she paused many times while talking,distress,cry,1,0.95
+290,2026-02-01 14:50:00,nothing out of the ordinary,neutral,neutral,0,0.68
+291,2026-02-01 14:51:00,her voice sounded very weak,distress,cry,1,0.94
+292,2026-02-01 14:52:00,people were listening attentively,neutral,neutral,0,0.7
+293,2026-02-01 14:53:00,she kept taking deep breaths,distress,cry,1,0.95
+294,2026-02-01 14:54:00,the meeting continued smoothly,neutral,neutral,0,0.69
+295,2026-02-01 14:55:00,she looked down and didnt respond,distress,cry,1,0.94
+296,2026-02-01 14:56:00,everything was normal,neutral,neutral,0,0.68
+297,2026-02-01 14:57:00,her words came out very slowly,distress,cry,1,0.95
+298,2026-02-01 14:58:00,the discussion wrapped up calmly,neutral,neutral,0,0.7
+299,2026-02-01 14:59:00,she seemed very upset and silent,distress,cry,1,0.96
+300,2026-02-01 15:00:00,everyone left the room quietly,neutral,neutral,0,0.69

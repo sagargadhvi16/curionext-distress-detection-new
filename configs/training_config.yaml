@@ -1,47 +1,226 @@
-# Training Configuration
+# Comprehensive Training Configuration for Distress Detection Model
+# All hyperparameters are tunable via config or command line overrides
 
+# ============================================================================
+# TRAINING HYPERPARAMETERS
+# ============================================================================
 training:
-  epochs: 50
-  batch_size: 32
-  learning_rate: 0.001
-  optimizer: "adam"
-  weight_decay: 0.0001
-
-  # Learning rate schedule
+  # Basic training parameters
+  epochs: 100                      # Maximum number of training epochs
+  batch_size: 32                   # Training batch size
+  num_workers: 4                   # DataLoader workers
+  pin_memory: true                 # Pin memory for faster GPU transfers
+  
+  # Optimization parameters
+  learning_rate: 0.001             # Initial learning rate
+  optimizer: "adam"                # Optimizer: adam, sgd, adamw
+  weight_decay: 0.0001             # L2 regularization
+  gradient_clip_norm: 1.0          # Maximum gradient norm for clipping
+  
+  # Optimizer-specific parameters
+  optimizer_params:
+    adam:
+      betas: [0.9, 0.999]          # Adam betas
+      eps: 1.0e-8                  # Adam epsilon
+    sgd:
+      momentum: 0.9                 # SGD momentum
+      nesterov: true                # Use Nesterov momentum
+  
+  # Learning rate scheduler
   scheduler:
-    type: "reduce_on_plateau"
-    factor: 0.5
-    patience: 5
-    min_lr: 0.00001
+    type: "reduce_on_plateau"      # Options: reduce_on_plateau, cosine_annealing, step, exponential, warmup_cosine
+    factor: 0.5                     # Multiply LR by this when plateau detected
+    patience: 5                     # Patience for plateau detection (epochs)
+    min_lr: 1.0e-6                  # Minimum learning rate
+    cooldown: 0                     # Cooldown before resuming monitoring
+    
+    # For other schedulers
+    step_size: 10                   # Step size for step scheduler
+    gamma: 0.1                      # Decay factor
+    
+    # For warmup
+    warmup_epochs: 5                # Number of warmup epochs
+    t_max: 100                      # T_max for cosine annealing
 
+# ============================================================================
+# LOSS AND TASK WEIGHTING
+# ============================================================================
 loss:
-  type: "weighted_cross_entropy"
-  # Emphasize false negatives (missing distress)
-  class_weights: [1.0, 2.0]  # [no_distress, distress]
+  type: "multi_task"               # Type of loss function
+  
+  # Task weights for multi-task learning
+  task_weights:
+    distress: 1.0                  # Distress detection weight
+    severity: 0.5                  # Severity prediction weight
+    type: 0.5                       # Distress type weight
+  
+  # Class weights for imbalanced data (emphasize false negatives)
+  distress_class_weights: [1.0, 2.0]   # [no_distress, distress] - higher for minority class
+  
+  # Severity loss
+  severity_loss_type: "mse"        # mse, mae, huber
+  
+  # Type loss
+  type_loss_type: "ce"             # ce (cross entropy)
 
+# ============================================================================
+# EARLY STOPPING CONFIGURATION
+# ============================================================================
+early_stopping:
+  enabled: true                    # Enable early stopping
+  metric: "val_f1"                 # Metric to monitor: val_loss, val_f1, val_recall, val_auc
+  patience: 15                     # Number of epochs with no improvement to trigger stop
+  min_delta: 1.0e-4                # Minimum change to qualify as improvement
+  mode: "max"                      # max (for accuracy/f1/recall) or min (for loss)
+  verbose: true                    # Print early stopping progress
+  restore_best_weights: true       # Restore weights from best epoch
+
+# ============================================================================
+# CHECKPOINTING CONFIGURATION
+# ============================================================================
+checkpointing:
+  save_dir: "models/checkpoints"   # Directory to save checkpoints
+  save_every: 1                    # Save checkpoint every N epochs
+  keep_best: 5                     # Number of best checkpoints to keep
+  
+  # Best checkpoint criteria
+  best_metric: "val_f1"            # Metric to determine best checkpoint
+  best_mode: "max"                 # max or min
+  
+  # Include in checkpoint
+  save_optimizer: true             # Save optimizer state
+  save_scheduler: true             # Save scheduler state
+  save_training_state: true        # Save epoch, iterations, etc.
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
 data:
-  train_split: 0.7
-  val_split: 0.15
-  test_split: 0.15
-  random_seed: 42
-
+  # Data splits
+  train_split: 0.7                 # Training set proportion
+  val_split: 0.15                  # Validation set proportion
+  test_split: 0.15                 # Test set proportion
+  random_seed: 42                  # Random seed for reproducibility
+  
   # Data augmentation
   augmentation:
+    enabled: true
     audio:
-      - time_stretch: [0.9, 1.1]
-      - pitch_shift: [-2, 2]
-      - add_noise: 0.005
+      - type: "time_stretch"
+        factors: [0.9, 1.1]
+        prob: 0.5
+      - type: "pitch_shift"
+        n_steps: [-2, 2]
+        prob: 0.5
+      - type: "add_noise"
+        snr_db: [10, 20]
+        prob: 0.3
+      - type: "time_shift"
+        max_shift_factor: 0.1
+        prob: 0.3
+    
     biometric:
-      - gaussian_noise: 0.01
+      - type: "gaussian_noise"
+        std: 0.01
+        prob: 0.5
+      - type: "scaling"
+        factors: [0.95, 1.05]
+        prob: 0.3
+  
+  # Data loading
+  prefetch_factor: 2               # Number of samples to prefetch
 
-checkpointing:
-  save_dir: "models/checkpoints"
-  save_every: 5  # epochs
-  keep_best: 3
-  metric: "val_f1"
-  mode: "max"
+# ============================================================================
+# MODEL CONFIGURATION
+# ============================================================================
+model:
+  # Architecture choices
+  use_attention_fusion: true       # Use attention fusion instead of simple concatenation
+  
+  # Encoder dimensions
+  audio_dim: 256                   # Audio embedding dimension
+  bio_dim: 256                     # Biometric embedding dimension
+  context_dim: 64                  # Context embedding dimension
+  
+  # Fusion parameters
+  fusion_hidden_dims: [512, 256]   # Hidden layer dimensions for fusion
+  
+  # Classifier parameters
+  classifier_hidden_dim: 128       # Hidden dimension for classifier
+  dropout: 0.4                     # Dropout probability
+  
+  # Output dimensions
+  num_distress_types: 5            # Number of distress type classes
+
+# ============================================================================
+# VALIDATION CONFIGURATION
+# ============================================================================
+validation:
+  val_batch_size: 64               # Validation batch size (can be larger)
+  eval_interval: 1                 # Evaluate every N epochs
+  compute_full_metrics: true       # Compute full confusion matrix and metrics
+
+# ============================================================================
+# METRICS AND LOGGING
+# ============================================================================
+metrics:
+  # Metrics to track
+  track_metrics:
+    - loss
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - auc_roc
+    - false_negative_rate
+    - confusion_matrix
+  
+  # Focus on minimizing false negatives (missed distress)
+  critical_metrics:
+    - false_negative_rate
+    - recall
 
 logging:
-  wandb: false
-  tensorboard: true
-  log_every: 10  # batches
+  # Logging levels
+  level: "INFO"                    # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  
+  # Log to file
+  log_file: "logs/training.log"
+  
+  # Console logging
+  log_every: 10                    # Log metrics every N batches
+  
+  # Experiment tracking
+  use_wandb: false                 # Use Weights & Biases
+  use_tensorboard: true            # Use TensorBoard
+  
+  wandb_project: "distress-detection"
+  wandb_entity: "your-entity"
+  tensorboard_dir: "logs/tensorboard"
+
+# ============================================================================
+# VISUALIZATION CONFIGURATION
+# ============================================================================
+visualization:
+  # Plot generation
+  plot_every: 5                    # Generate plots every N epochs
+  plot_training_curves: true       # Plot loss and accuracy curves
+  plot_learning_rate: true         # Plot learning rate schedule
+  plot_confusion_matrix: true      # Plot confusion matrix
+  
+  # Plot saving
+  plot_dir: "logs/plots"
+  save_plots: true
+  dpi: 100                         # Plot DPI
+
+# ============================================================================
+# DEVICE AND MISC
+# ============================================================================
+device:
+  type: "auto"                     # auto (use GPU if available), cpu, cuda:0, etc.
+  mixed_precision: false           # Enable mixed precision training (AMP)
+
+misc:
+  deterministic: true              # Set random seeds for reproducibility
+  benchmark: false                 # Enable cuDNN benchmarking
+  verbose: true                    # Verbose output
