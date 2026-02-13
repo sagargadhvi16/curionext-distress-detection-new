@@ -1,48 +1,112 @@
-"""Biometric signal encoder."""
+"""
+Biometric Encoder
+-----------------
+Encodes temporal biometric features using:
+- BiLSTM
+- Attention mechanism
+
+Input:
+- Biometric feature sequence (B, T, F)
+
+Output:
+- Fixed-length embedding (B, embedding_dim)
+"""
+
 import torch
 import torch.nn as nn
-from typing import Dict
+import numpy as np
 
 
 class BiometricEncoder(nn.Module):
     """
-    Neural network encoder for biometric features.
-
-    Processes HRV and accelerometer features into a compact embedding.
+    BiLSTM-based encoder with attention for biometric time-series.
     """
 
     def __init__(
         self,
-        input_dim: int = 20,
-        hidden_dims: list = [128, 64],
-        embedding_dim: int = 64,
+        input_dim: int,
+        hidden_dim: int = 256,
+        embedding_dim: int = 256,
         dropout: float = 0.3
     ):
-        """
-        Initialize biometric encoder.
-
-        Args:
-            input_dim: Number of input features (HRV + accelerometer)
-            hidden_dims: List of hidden layer dimensions
-            embedding_dim: Output embedding dimension
-            dropout: Dropout probability
-
-        TODO: Build neural network architecture
-        """
         super().__init__()
-        # TODO: Initialize layers
-        pass  # To be implemented by Intern 2
 
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        # -----------------------------
+        # BiLSTM layer
+        # -----------------------------
+        self.bilstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            batch_first=True,
+            bidirectional=True
+        )
+
+        # -----------------------------
+        # Attention layer
+        # -----------------------------
+        self.attention = nn.Sequential(
+            nn.Linear(hidden_dim * 2, 128),
+            nn.Tanh(),
+            nn.Linear(128, 1)
+        )
+
+        # -----------------------------
+        # Final projection
+        # -----------------------------
+        self.dropout = nn.Dropout(dropout)
+        self.fc = nn.Linear(hidden_dim * 2, embedding_dim)
+
+    def forward(self, x) -> torch.Tensor:
         """
-        Encode biometric features.
+        Forward pass.
 
         Args:
-            features: Input tensor (batch_size, input_dim)
+            x: Tensor or NumPy array of shape (B, T, F)
 
         Returns:
-            Embeddings tensor (batch_size, embedding_dim)
-
-        TODO: Implement forward pass
+            embedding: Tensor of shape (B, embedding_dim)
         """
-        pass  # To be implemented by Intern 2
+
+        # -------------------------------------------------
+        # ✅ FIX: Convert NumPy → Torch if needed
+        # -------------------------------------------------
+        if isinstance(x, np.ndarray):
+            x = torch.tensor(x, dtype=torch.float32)
+
+        if not torch.is_tensor(x):
+            raise TypeError("Input must be torch.Tensor or np.ndarray")
+
+        # -----------------------------
+        # BiLSTM
+        # -----------------------------
+        lstm_out, _ = self.bilstm(x)
+        # (B, T, 2H)
+
+        # -----------------------------
+        # Attention
+        # -----------------------------
+        attn_scores = self.attention(lstm_out)
+        attn_weights = torch.softmax(attn_scores, dim=1)
+
+        context = torch.sum(attn_weights * lstm_out, dim=1)
+        context = self.dropout(context)
+
+        # -----------------------------
+        # Final embedding
+        # -----------------------------
+        embedding = self.fc(context)
+
+        return embedding
+
+
+# -------------------------------------------------
+# 🧪 Quick sanity test
+# -------------------------------------------------
+if __name__ == "__main__":
+    encoder = BiometricEncoder(input_dim=10)
+
+    dummy_np = np.random.randn(1, 5, 10)
+    dummy_torch = torch.randn(1, 5, 10)
+
+    print("From NumPy:", encoder(dummy_np).shape)
+    print("From Torch:", encoder(dummy_torch).shape)

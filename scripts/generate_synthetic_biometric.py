@@ -90,8 +90,8 @@ if __name__ == "__main__":
     print("Generating synthetic biometric data...")
 
     # Create output directories
-    hrv_dir = Path("data/synthetic/hrv")
-    accel_dir = Path("data/synthetic/accelerometer")
+    hrv_dir = Path("data/synthetic/biometric/hrv")
+    accel_dir = Path("data/synthetic/biometricaccelerometer")
     hrv_dir.mkdir(parents=True, exist_ok=True)
     accel_dir.mkdir(parents=True, exist_ok=True)
 

@@ -138,6 +138,46 @@ Optimizer Step → Validation → Checkpoint Saving
 - **Accuracy:** > 90%
 - **False Negative Rate:** < 5% (critical)
 
+## Configuration Management
+
+The system uses YAML-based configuration files located in `configs/`:
+
+1. **model_config.yaml** - Defines model architecture:
+   - Audio encoder (YAMNet) configuration
+   - Biometric encoder (hidden layers, dropout)
+   - Fusion layer architecture
+   - Classifier configuration
+
+2. **training_config.yaml** - Training hyperparameters:
+   - Epochs, batch size, learning rate
+   - Optimizer and scheduler settings
+   - Loss function (weighted cross-entropy)
+   - Data splits and augmentation
+   - Checkpointing strategy
+
+3. **deployment_config.yaml** - Deployment settings:
+   - API server configuration (host, port, workers)
+   - Inference settings (device, batch size)
+   - Performance thresholds
+   - Security settings (CORS, rate limiting)
+
+The `Config` class in `src/utils/config.py` provides:
+- YAML file loading with validation
+- Multi-file configuration merging
+- Dot-notation access (`config.get('key.subkey')`)
+- Attribute-style access (`config.key.subkey`)
+
+## Logging System
+
+Structured logging is implemented in `src/utils/logger.py`:
+
+- **Multiple Levels:** DEBUG, INFO, WARNING, ERROR, CRITICAL
+- **Console Handler:** Colored output for easy debugging
+- **File Handler:** Rotating logs (10MB max, 5 backups) in `logs/` directory
+- **Format:** Timestamps, log level, module name, function/line number, message
+
+Log files are automatically rotated to prevent disk space issues.
+
 ## Technology Stack
 
 - **ML Framework:** PyTorch 2.0+
@@ -146,3 +186,5 @@ Optimizer Step → Validation → Checkpoint Saving
 - **API:** FastAPI, uvicorn
 - **Explainability:** SHAP
 - **Testing:** pytest
+- **Configuration:** PyYAML, custom Config class
+- **Logging:** Python logging with custom handlers
